@@ -52,7 +52,7 @@ Color priorityColor(TaskPriority priority) {
     case TaskPriority.low:
       return AppColors.onTrack;
     case TaskPriority.medium:
-      return const Color(0xFFB97800);
+      return AppColors.priorityMedium;
     case TaskPriority.high:
       return AppColors.overdue;
   }
@@ -79,14 +79,7 @@ class StatusPill extends StatelessWidget {
         color: background,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: foreground,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
+      child: Text(label, style: AppText.pill.copyWith(color: foreground)),
     );
   }
 }

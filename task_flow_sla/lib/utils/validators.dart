@@ -4,13 +4,18 @@ class Validators {
   static const titleMaxLength = 60;
   static const descriptionMaxLength = 300;
   static const passwordMinLength = 6;
+  static const projectNameMaxLength = 40;
 
   static final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
   static String? taskTitle(String? value) {
     final title = value?.trim() ?? '';
-    if (title.length < titleMinLength || title.length > titleMaxLength) {
-      return 'Title is required ($titleMinLength-$titleMaxLength characters)';
+    if (title.isEmpty) return 'Title is required';
+    if (title.length < titleMinLength) {
+      return 'Title must be at least $titleMinLength characters';
+    }
+    if (title.length > titleMaxLength) {
+      return 'Title must be at most $titleMaxLength characters';
     }
     return null;
   }
@@ -26,10 +31,18 @@ class Validators {
     return null;
   }
 
-  static String? requiredText(String? value, String fieldName, {int min = 2}) {
+  static String? requiredText(
+    String? value,
+    String fieldName, {
+    int min = 2,
+    int? max,
+  }) {
     final text = value?.trim() ?? '';
     if (text.isEmpty) return '$fieldName is required';
     if (text.length < min) return '$fieldName must be at least $min characters';
+    if (max != null && text.length > max) {
+      return '$fieldName must be at most $max characters';
+    }
     return null;
   }
 

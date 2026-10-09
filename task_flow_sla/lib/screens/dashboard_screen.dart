@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../app_router.dart';
-import '../data/seed_data.dart';
 import '../models/task.dart';
 import '../models/team_member.dart';
 import '../theme/app_theme.dart';
@@ -16,22 +15,29 @@ class DashboardScreen extends StatelessWidget {
   const DashboardScreen({
     super.key,
     required this.tasks,
-    required this.members,
+    required this.membersById,
     required this.currentUser,
+    required this.projectName,
+    required this.onRenameProject,
     required this.onChanged,
     required this.onShowTasks,
     required this.onOpenMenu,
   });
 
   final List<Task> tasks;
-  final List<TeamMember> members;
+  final Map<int, TeamMember> membersById;
   final TeamMember currentUser;
+  final String projectName;
+
+  /// Opens the rename dialog owned by HomeShell.
+  final VoidCallback onRenameProject;
 
   /// Reloads the shared data after something was created or edited.
   final Future<void> Function() onChanged;
 
-  /// Switches to the Tasks tab, optionally filtered by an SLA status.
-  final ValueChanged<SlaStatus?> onShowTasks;
+  /// Switches to the Tasks tab filtered to the given SLA statuses
+  /// (null shows every task).
+  final ValueChanged<Set<SlaStatus>?> onShowTasks;
 
   /// Opens the navigation drawer owned by HomeShell.
   final VoidCallback onOpenMenu;
@@ -55,10 +61,9 @@ class DashboardScreen extends StatelessWidget {
 
     // "Needs attention" = overdue or at risk. Tasks arrive sorted by
     // deadline, so the most urgent ones come first.
-    final attention = tasks.where((task) {
-      final status = Sla.statusOf(task, now: now);
-      return status == SlaStatus.overdue || status == SlaStatus.atRisk;
-    }).toList();
+    final attention = tasks
+        .where((task) => Sla.needsAttention.contains(Sla.statusOf(task, now: now)))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -83,9 +88,12 @@ class DashboardScreen extends StatelessWidget {
           children: [
             _Header(
               greeting: '$_greeting, ${currentUser.firstName}',
+              projectName: projectName,
+              onRenameProject: onRenameProject,
               user: currentUser,
               doneCount: counts[SlaStatus.completed]!,
               totalCount: tasks.length,
+              onTimeRate: Sla.onTimeRate(tasks),
             ),
             Padding(
               padding: const EdgeInsets.all(16),
@@ -99,18 +107,15 @@ class DashboardScreen extends StatelessWidget {
                   Row(
                     children: [
                       const Expanded(
-                        child: Text(
-                          'Needs attention',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textDark,
-                          ),
-                        ),
+                        child: Text('Needs attention', style: AppText.section),
                       ),
                       TextButton(
-                        onPressed: () => onShowTasks(null),
-                        child: const Text('See all'),
+                        onPressed: () => onShowTasks(Sla.needsAttention),
+                        child: Text(
+                          attention.length > 3
+                              ? 'See all ${attention.length}'
+                              : 'See all',
+                        ),
                       ),
                     ],
                   ),
@@ -121,7 +126,7 @@ class DashboardScreen extends StatelessWidget {
                         child: Text(
                           'Nothing is overdue or at risk. Nice work!',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: AppColors.textMuted),
+                          style: AppText.bodyMuted,
                         ),
                       ),
                     ),
@@ -130,13 +135,8 @@ class DashboardScreen extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 10),
                       child: _AttentionTile(
                         task: task,
-                        assignee: members
-                            .where((m) => m.id == task.assigneeId)
-                            .firstOrNull,
-                        status: Sla.statusOf(
-                          task,
-                          now: now,
-                        ),
+                        assignee: membersById[task.assigneeId],
+                        status: Sla.statusOf(task, now: now),
                         timeLabel: Sla.describe(task, now: now),
                         onTap: () =>
                             _open(context, AppRoutes.taskDetails, task.id),
@@ -151,26 +151,34 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
+  /// Two rows of two cards. IntrinsicHeight makes both cards in a row as tall
+  /// as the taller one, and lets them grow with large system font sizes
+  /// instead of overflowing a fixed height.
   Widget _buildCountCards(Map<SlaStatus, int> counts) {
-    return GridView(
-      // The grid sits inside a ListView, so it must size itself and leave
-      // scrolling to the parent.
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.zero,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        mainAxisExtent: 76,
-      ),
+    Widget card(SlaStatus status) {
+      return Expanded(
+        child: _CountCard(
+          status: status,
+          count: counts[status]!,
+          onTap: () => onShowTasks({status}),
+        ),
+      );
+    }
+
+    Widget row(SlaStatus left, SlaStatus right) {
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [card(left), const SizedBox(width: 12), card(right)],
+        ),
+      );
+    }
+
+    return Column(
       children: [
-        for (final status in SlaStatus.values)
-          _CountCard(
-            status: status,
-            count: counts[status]!,
-            onTap: () => onShowTasks(status),
-          ),
+        row(SlaStatus.onTrack, SlaStatus.atRisk),
+        const SizedBox(height: 12),
+        row(SlaStatus.overdue, SlaStatus.completed),
       ],
     );
   }
@@ -179,19 +187,29 @@ class DashboardScreen extends StatelessWidget {
 class _Header extends StatelessWidget {
   const _Header({
     required this.greeting,
+    required this.projectName,
+    required this.onRenameProject,
     required this.user,
     required this.doneCount,
     required this.totalCount,
+    required this.onTimeRate,
   });
 
   final String greeting;
+  final String projectName;
+  final VoidCallback onRenameProject;
   final TeamMember user;
   final int doneCount;
   final int totalCount;
 
+  /// Share of completed tasks finished by their deadline, null if none yet.
+  final double? onTimeRate;
+
   @override
   Widget build(BuildContext context) {
     final progress = totalCount == 0 ? 0.0 : doneCount / totalCount;
+    final onTime = onTimeRate;
+    const white70 = TextStyle(color: Colors.white70);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
@@ -209,10 +227,7 @@ class _Header extends StatelessWidget {
                 backgroundColor: Colors.white,
                 child: Text(
                   user.initials,
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: AppText.bodyStrong.copyWith(color: AppColors.primary),
                 ),
               ),
               const SizedBox(width: 12),
@@ -224,15 +239,30 @@ class _Header extends StatelessWidget {
                       greeting,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: AppText.heading.copyWith(color: Colors.white),
                     ),
-                    const Text(
-                      seedProjectName,
-                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    InkWell(
+                      onTap: onRenameProject,
+                      borderRadius: BorderRadius.circular(6),
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              projectName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.caption.merge(white70),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.edit_outlined,
+                            size: 14,
+                            color: Colors.white70,
+                            semanticLabel: 'Rename project',
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -251,18 +281,15 @@ class _Header extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Project progress',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: AppText.bodyStrong.copyWith(color: Colors.white),
                       ),
                     ),
                     Text(
                       '${(progress * 100).round()}%',
-                      style: const TextStyle(
+                      style: AppText.bodyStrong.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
                       ),
@@ -280,7 +307,24 @@ class _Header extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   '$doneCount of $totalCount tasks completed',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  style: AppText.caption.merge(white70),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.timer_outlined,
+                        size: 14, color: Colors.white),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        onTime == null
+                            ? 'On-time rate appears once a task is completed'
+                            : '${(onTime * 100).round()}% of completed tasks '
+                                'met their deadline',
+                        style: AppText.caption.copyWith(color: Colors.white),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -309,7 +353,7 @@ class _CountCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
               Container(
@@ -327,22 +371,12 @@ class _CountCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '$count',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textDark,
-                      ),
-                    ),
+                    Text('$count', style: AppText.heading),
                     Text(
                       status.label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textMuted,
-                      ),
+                      style: AppText.caption,
                     ),
                   ],
                 ),
@@ -369,14 +403,7 @@ class _OverviewCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Task overview',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textDark,
-              ),
-            ),
+            const Text('Task overview', style: AppText.section),
             const SizedBox(height: 14),
             Row(
               children: [
@@ -402,12 +429,12 @@ class _OverviewCard extends StatelessWidget {
                                 backgroundColor: SlaStyle.of(status).color,
                               ),
                               const SizedBox(width: 10),
-                              Expanded(child: Text(status.label)),
+                              Expanded(
+                                child: Text(status.label, style: AppText.body),
+                              ),
                               Text(
                                 '${counts[status]}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                ),
+                                style: AppText.bodyStrong,
                               ),
                             ],
                           ),
@@ -449,12 +476,11 @@ class _AttentionTile extends StatelessWidget {
           task.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          style: AppText.bodyStrong,
         ),
         subtitle: Text(
           timeLabel,
-          style: TextStyle(
-            fontSize: 12,
+          style: AppText.caption.copyWith(
             fontWeight: FontWeight.w600,
             color: SlaStyle.of(status).foreground,
           ),

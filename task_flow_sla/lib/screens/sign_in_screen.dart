@@ -12,8 +12,9 @@ import '../widgets/member_form_dialog.dart';
 
 /// Sign In / User Selection.
 ///
-/// There is no real authentication: an email is accepted when it belongs to a
-/// team member stored in the database, or the user taps a member to sign in.
+/// There is no real authentication service. Signing in with email checks the
+/// email and password against the members stored in the local database.
+/// Tapping a team member below the form is the quick "user selection" path.
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
 
@@ -34,6 +35,9 @@ class _SignInScreenState extends State<SignInScreen> {
 
   /// Shown under the email field when no member matches the typed email.
   String? _emailError;
+
+  /// Shown under the password field when the password is wrong.
+  String? _passwordError;
 
   @override
   void initState() {
@@ -56,7 +60,8 @@ class _SignInScreenState extends State<SignInScreen> {
         _members = members;
         _loadingMembers = false;
       });
-    } catch (_) {
+    } catch (error, stack) {
+      logError('Could not load members', error, stack);
       if (!mounted) return;
       setState(() => _loadingMembers = false);
       showMessage(context, 'Could not load team members. Please try again.');
@@ -64,7 +69,10 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _signInWithEmail() async {
-    setState(() => _emailError = null);
+    setState(() {
+      _emailError = null;
+      _passwordError = null;
+    });
     if (!_formKey.currentState!.validate()) return;
 
     final email = _emailController.text.trim().toLowerCase();
@@ -74,7 +82,25 @@ class _SignInScreenState extends State<SignInScreen> {
       setState(() => _emailError = 'No team member uses this email');
       return;
     }
-    await _completeSignIn(member);
+
+    setState(() => _submitting = true);
+    final bool correct;
+    try {
+      correct = await DatabaseHelper.instance
+          .checkPassword(member.id!, _passwordController.text);
+    } catch (error, stack) {
+      logError('Could not check password', error, stack);
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      showMessage(context, 'Sign in failed. Please try again.');
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _submitting = false;
+      if (!correct) _passwordError = 'Incorrect password';
+    });
+    if (correct) await _completeSignIn(member);
   }
 
   Future<void> _completeSignIn(TeamMember member) async {
@@ -85,7 +111,8 @@ class _SignInScreenState extends State<SignInScreen> {
       if (!mounted) return;
       // Replace this screen so Back does not return to sign in.
       Navigator.pushReplacementNamed(context, AppRoutes.home);
-    } catch (_) {
+    } catch (error, stack) {
+      logError('Could not save session', error, stack);
       if (!mounted) return;
       setState(() => _submitting = false);
       showMessage(context, 'Sign in failed. Please try again.');
@@ -98,12 +125,15 @@ class _SignInScreenState extends State<SignInScreen> {
       title: 'Create account',
       takenEmails: _members.map((m) => m.email),
       colorIndex: _members.length,
+      askPassword: true,
     );
     if (draft == null) return;
     try {
-      final member = await DatabaseHelper.instance.insertMember(draft);
+      final member = await DatabaseHelper.instance
+          .insertMember(draft.member, password: draft.password);
       await _completeSignIn(member);
-    } catch (_) {
+    } catch (error, stack) {
+      logError('Could not create account', error, stack);
       if (!mounted) return;
       showMessage(context, 'Could not create the account. Please try again.');
     }
@@ -115,9 +145,10 @@ class _SignInScreenState extends State<SignInScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Forgot password?'),
         content: const Text(
-          'SprintTrack keeps everything on this device and has no real '
-          'accounts. Enter a team email with any password of 6 or more '
-          'characters, or tap a team member to sign in.',
+          'SprintTrack keeps everything on this device and has no password '
+          'reset. The demo team and members added from the Team tab use the '
+          'password "${DatabaseHelper.demoPassword}". You can also tap a team '
+          'member below the form to sign in as them.',
         ),
         actions: [
           TextButton(
@@ -148,13 +179,13 @@ class _SignInScreenState extends State<SignInScreen> {
                   const SizedBox(height: 24),
                   _buildDemoMembers(),
                   const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  // Wrap instead of Row so large system fonts move the button
+                  // onto its own line rather than overflowing.
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      const Text(
-                        'New to the team?',
-                        style: TextStyle(color: AppColors.textMuted),
-                      ),
+                      const Text('New to the team?', style: AppText.bodyMuted),
                       TextButton(
                         onPressed: _submitting ? null : _createAccount,
                         child: const Text('Create account'),
@@ -199,6 +230,7 @@ class _SignInScreenState extends State<SignInScreen> {
             decoration: InputDecoration(
               hintText: 'Password',
               prefixIcon: const Icon(Icons.lock_outline),
+              errorText: _passwordError,
               suffixIcon: IconButton(
                 tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                 icon: Icon(
@@ -212,6 +244,11 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
             ),
             validator: Validators.password,
+            onChanged: (_) {
+              if (_passwordError != null) {
+                setState(() => _passwordError = null);
+              }
+            },
             onFieldSubmitted: (_) => _signInWithEmail(),
           ),
           const SizedBox(height: 4),
@@ -223,7 +260,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   setState(() => _rememberMe = value ?? false);
                 },
               ),
-              const Expanded(child: Text('Remember me')),
+              const Expanded(child: Text('Remember me', style: AppText.body)),
               TextButton(
                 onPressed: _showForgotPassword,
                 child: const Text('Forgot password?'),
@@ -253,10 +290,7 @@ class _SignInScreenState extends State<SignInScreen> {
             Expanded(child: Divider()),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Text(
-                'or sign in as a team member',
-                style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-              ),
+              child: Text('or sign in as a team member', style: AppText.caption),
             ),
             Expanded(child: Divider()),
           ],
@@ -283,10 +317,8 @@ class _SignInScreenState extends State<SignInScreen> {
                         const SizedBox(height: 4),
                         Text(
                           member.firstName,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textDark,
-                          ),
+                          style: AppText.caption
+                              .copyWith(color: AppColors.textDark),
                         ),
                       ],
                     ),
@@ -316,26 +348,16 @@ class _Logo extends StatelessWidget {
           child: const Icon(Icons.task_alt, color: Colors.white, size: 44),
         ),
         const SizedBox(height: 16),
-        const Text(
-          'SprintTrack',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textDark,
-          ),
-        ),
+        const Text('SprintTrack', style: AppText.display),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'Project & SLA Task Tracker',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: AppColors.primary,
-          ),
+          style: AppText.bodyStrong.copyWith(color: AppColors.primary),
         ),
         const SizedBox(height: 2),
         const Text(
           'Assign it. Track it. Deliver on time.',
-          style: TextStyle(color: AppColors.textMuted),
+          style: AppText.bodyMuted,
         ),
       ],
     );

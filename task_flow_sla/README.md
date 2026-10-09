@@ -21,8 +21,18 @@ Checked in this order (`lib/utils/sla.dart`):
 
 1. **Completed** - the task status is Done.
 2. **Overdue** - not done and the deadline has passed.
-3. **At Risk** - not done and the deadline is less than 48 hours away.
+3. **At Risk** - not done and either
+   - less time is left than the priority's lead time
+     (High 72 hours, Medium 48 hours, Low 24 hours), or
+   - 75% or more of the time between creation and deadline is used.
 4. **On Track** - everything else.
+
+Statuses refresh every minute while the app is open.
+
+## Demo sign in
+
+Tap any team member, or sign in with their email and the demo password
+`sprint123`. Accounts made with "Create account" use the password chosen there.
 
 ## Project structure
 

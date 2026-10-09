@@ -48,19 +48,12 @@ class TaskCard extends StatelessWidget {
                       task.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textDark,
-                      ),
+                      style: AppText.cardTitle,
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '${task.category} · ${task.priority.label} priority',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textMuted,
-                      ),
+                      style: AppText.caption,
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -74,10 +67,7 @@ class TaskCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             formatDate(task.dueDate),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textMuted,
-                            ),
+                            style: AppText.caption,
                           ),
                         ),
                         SlaBadge(status: slaStatus),

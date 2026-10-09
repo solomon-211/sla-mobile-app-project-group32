@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tempo · Welcome</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&amp;family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2B2E2D}a:hover{color:#000}
+.t-up{animation:t-up .7s cubic-bezier(.2,.8,.2,1) both}
+@keyframes t-up{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+.t-mask{overflow:hidden;display:block}
+.t-rise{display:block;animation:t-rise .8s cubic-bezier(.2,.8,.2,1) both}
+@keyframes t-rise{from{transform:translateY(110%)}to{transform:translateY(0)}}
+.t-scroller{scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.t-scroller::-webkit-scrollbar{display:none}
+.t-slide{transition:transform .18s linear,opacity .18s linear;scroll-snap-align:center;user-select:none}
+.t-dot{transition:width .4s cubic-bezier(.65,0,.35,1),background .4s}
+.t-btn{transition:scale .15s ease,box-shadow .25s ease}
+.t-btn:active{scale:.96}
+.t-btn .t-arrow{transition:width .35s cubic-bezier(.65,0,.35,1)}
+.t-btn:hover .t-arrow{width:72px}
+.t-nudge{animation:t-nudge 2.4s ease-in-out 1.8s infinite}
+@keyframes t-nudge{0%,70%,100%{transform:translateX(0)}80%{transform:translateX(5px)}90%{transform:translateX(-1px)}}
+.t-ghost{transition:scale .15s ease,background .25s ease}
+.t-ghost:hover{background:#FFFFFF}
+.t-ghost:active{scale:.96}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #E6E8E7; font-family: Manrope, sans-serif; color: #2B2E2D">
+
+<!-- horizontal carousel (CarouselView with itemExtent 280 + itemSnapping in Flutter) -->
+<section aria-roledescription="carousel" aria-label="What Tempo does" class="t-up" style="position: absolute; top: 36px; left: 0; right: 0; height: 384px; animation-delay: .15s">
+<div class="t-scroller" ref="{{setRef}}" onScroll="{{onScroll}}" onWheel="{{onWheel}}" onPointerDown="{{onDown}}" onPointerMove="{{onMove}}" onPointerUp="{{onUp}}" onPointerLeave="{{onUp}}" style="height: 100%; display: flex; gap: 12px; padding: 0 55px; box-sizing: border-box; overflow-x: auto; overflow-y: hidden; scroll-snap-type: {{snap}}; cursor: {{cursor}}">
+
+<!-- slide 1: the photo -->
+<div class="t-slide" aria-label="Slide 1 of 3" style="flex: 0 0 280px; height: 100%; border-radius: 32px; overflow: hidden; position: relative; background: #C8CCCA; transform: {{s0.t}}; opacity: {{s0.o}}">
+<img src="/_blob/8d894b9214ab1a5ad2c4f48b2e1adcd0" alt="A desk buried under sticky notes, papers and a laptop" draggable="false" style="width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none">
+<div style="position: absolute; left: 14px; right: 14px; bottom: 14px; padding: 14px 16px; border-radius: 22px; background: rgba(43,46,45,.88); color: #F5F6F6; display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #E59C88">Before</span>
+<span style="font-family: Sora, sans-serif; font-size: 17px; font-weight: 700">Tasks on sticky notes</span>
+</div>
+</div>
+
+<!-- slide 2: one list -->
+<div class="t-slide" aria-label="Slide 2 of 3" style="flex: 0 0 280px; height: 100%; border-radius: 32px; overflow: hidden; position: relative; background: #2B2E2D; color: #F5F6F6; padding: 18px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; transform: {{s1.t}}; opacity: {{s1.o}}">
+<span style="font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #8FAA7F">After</span>
+<span style="font-family: Sora, sans-serif; font-size: 20px; line-height: 25px; font-weight: 700">Every task in one place</span>
+<div style="margin-top: 6px; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 18px; background: #3A3E3D">
+<span style="width: 32px; height: 32px; border-radius: 50%; background: #F5F6F6; color: #2B2E2D; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800">BO</span>
+<span style="flex: 1; font-size: 13px; font-weight: 700">Fix login token refresh</span>
+<span style="width: 10px; height: 10px; border-radius: 50%; background: #D9785F"></span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 18px; background: #3A3E3D">
+<span style="width: 32px; height: 32px; border-radius: 50%; background: #6F8F5E; color: #121A0D; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800">AK</span>
+<span style="flex: 1; font-size: 13px; font-weight: 700">Write API error states</span>
+<span style="width: 10px; height: 10px; border-radius: 50%; background: #D9A441"></span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 18px; background: #3A3E3D">
+<span style="width: 32px; height: 32px; border-radius: 50%; background: #C4C8C6; color: #2B2E2D; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800">DA</span>
+<span style="flex: 1; font-size: 13px; font-weight: 700">Set up CI for Android</span>
+<span style="width: 10px; height: 10px; border-radius: 50%; background: #6F8F5E"></span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 18px; background: #3A3E3D; opacity: .6">
+<span style="width: 32px; height: 32px; border-radius: 50%; background: #E6E8E7; color: #2B2E2D; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800">CM</span>
+<span style="flex: 1; font-size: 13px; font-weight: 700">Design onboarding screens</span>
+<span style="width: 10px; height: 10px; border-radius: 50%; background: #D9A441"></span>
+</div>
+</div>
+</div>
+
+<!-- slide 3: on time -->
+<div class="t-slide" aria-label="Slide 3 of 3" style="flex: 0 0 280px; height: 100%; border-radius: 32px; overflow: hidden; position: relative; background: #6F8F5E; color: #121A0D; padding: 18px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; transform: {{s2.t}}; opacity: {{s2.o}}">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase">On time</span>
+<span style="font-family: Sora, sans-serif; font-size: 20px; line-height: 25px; font-weight: 700">Know what's at risk before it's late</span>
+</div>
+<div style="position: relative; width: 140px; height: 140px; align-self: center">
+<svg width="140" height="140" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(18,26,13,.18)" stroke-width="10"></circle><circle cx="50" cy="50" r="40" fill="none" stroke="#121A0D" stroke-width="10" stroke-linecap="round" stroke-dasharray="251" stroke-dashoffset="70" transform="rotate(-90 50 50)"></circle></svg>
+<div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center"><span style="font-family: Sora, sans-serif; font-size: 30px; font-weight: 700">62%</span><span style="font-size: 12px; font-weight: 700">sprint done</span></div>
+</div>
+<div style="display: flex; gap: 6px">
+<span style="padding: 6px 10px; border-radius: 999px; background: #121A0D; color: #8FAA7F; font-size: 12px; font-weight: 800">5 on track</span>
+<span style="padding: 6px 10px; border-radius: 999px; background: #F1E2C2; color: #5C3A00; font-size: 12px; font-weight: 800">2 at risk</span>
+</div>
+</div>
+</div>
+</section>
+
+<!-- dots -->
+<div role="group" aria-label="Choose slide" class="t-up" style="position: absolute; top: 430px; left: 0; right: 0; display: flex; justify-content: center; animation-delay: .25s">
+<sc-for list="{{dots}}" as="d" hint-placeholder-count="3">
+<button aria-label="{{d.label}}" aria-current="{{d.on}}" onClick="{{d.pick}}" style="height: 32px; padding: 0 4px; border: 0; background: transparent; display: flex; align-items: center; cursor: pointer">
+<span class="t-dot" style="display: block; height: 8px; border-radius: 4px; width: {{d.w}}; background: {{d.c}}"></span>
+</button>
+</sc-for>
+</div>
+
+<!-- hero text -->
+<div style="position: absolute; top: 478px; left: 24px; right: 24px; display: flex; flex-direction: column; gap: 12px">
+<h1 style="margin: 0; font-family: Sora, sans-serif; font-size: 32px; line-height: 38px; font-weight: 700; letter-spacing: -1.2px"><span class="t-mask"><span class="t-rise" style="animation-delay: 0.35s">Organize your team's</span></span><span class="t-mask"><span class="t-rise" style="animation-delay: 0.45s">project tasks</span></span><span class="t-mask"><span class="t-rise" style="animation-delay: 0.55s; color: rgb(86, 115, 74)">better today!</span></span></h1>
+<p class="t-up" style="margin: 0; font-size: 15px; line-height: 23px; font-weight: 500; color: #535856; animation-delay: .7s">Assign work, track every deadline and spot tasks at risk before they slip.</p>
+</div>
+
+<!-- buttons -->
+<div style="position: absolute; left: 16px; right: 16px; bottom: 20px; display: flex; flex-direction: column; gap: 10px">
+<a href="Register.dc.html" class="t-btn t-up" style="height: 64px; border-radius: 999px; background: #2B2E2D; color: #F5F6F6; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 26px; font-weight: 800; font-size: 16px; text-decoration: none; box-shadow: 0 12px 30px rgba(43,46,45,.25); animation-delay: .85s">
+Get started
+<span class="t-arrow" style="width: 48px; height: 48px; border-radius: 999px; background: #6F8F5E; display: flex; align-items: center; justify-content: center">
+<svg class="t-nudge" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#121A0D" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+</span>
+</a>
+<a href="Main.dc.html" class="t-ghost t-up" style="height: 56px; border-radius: 999px; border: 1.5px solid #2B2E2D; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; text-decoration: none; color: #2B2E2D; animation-delay: .95s">I already have an account</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"autoplay":{"editor":"boolean","default":true},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.STEP = 292; // card width 280 + gap 12
+    this.N = 3;
+    this.state = { pos: 0, dragging: false };
+    this.el = null;
+    this.lastTouch = 0;
+    this.lastWheel = 0;
+    this.drag = null;
+  }
+  componentDidMount() {
+    this.timer = setInterval(() => {
+      if (this.props.autoplay === false || !this.el) return;
+      if (Date.now() - this.lastTouch < 4000) return;
+      const cur = Math.round(this.el.scrollLeft / this.STEP);
+      this.goTo((cur + 1) % this.N);
+    }, 3200);
+  }
+  componentWillUnmount() {
+    clearInterval(this.timer);
+  }
+  goTo(n) {
+    if (!this.el) return;
+    this.el.scrollTo({ left: n * this.STEP, behavior: 'smooth' });
+  }
+  renderVals() {
+    const p = this.state.pos;
+    const slide = (n) => {
+      const d = Math.min(Math.abs(n - p), 1);
+      return { t: 'scale(' + (1 - 0.1 * d).toFixed(3) + ')', o: (1 - 0.45 * d).toFixed(3) };
+    };
+    const active = Math.round(p);
+    const dots = [0, 1, 2].map((n) => ({
+      label: 'Show slide ' + (n + 1),
+      on: n === active,
+      w: n === active ? '28px' : '8px',
+      c: n === active ? '#2B2E2D' : '#A7ACAA',
+      pick: () => { this.lastTouch = Date.now(); this.goTo(n); }
+    }));
+    return {
+      s0: slide(0), s1: slide(1), s2: slide(2),
+      dots,
+      snap: this.state.dragging ? 'none' : 'x mandatory',
+      cursor: this.state.dragging ? 'grabbing' : 'grab',
+      setRef: (el) => { this.el = el; },
+      onScroll: (e) => {
+        this.setState({ pos: e.currentTarget.scrollLeft / this.STEP });
+      },
+      onWheel: (e) => {
+        if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) { this.lastTouch = Date.now(); return; }
+        const now = Date.now();
+        if (now - this.lastWheel < 500 || Math.abs(e.deltaY) < 8) return;
+        this.lastWheel = now;
+        this.lastTouch = now;
+        const cur = Math.round(this.el.scrollLeft / this.STEP);
+        const next = Math.max(0, Math.min(this.N - 1, cur + (e.deltaY > 0 ? 1 : -1)));
+        this.goTo(next);
+      },
+      onDown: (e) => {
+        this.lastTouch = Date.now();
+        if (e.pointerType !== 'mouse' || !this.el) return;
+        this.drag = { x: e.clientX, left: this.el.scrollLeft };
+        this.setState({ dragging: true });
+      },
+      onMove: (e) => {
+        if (!this.drag || !this.el) return;
+        this.el.scrollLeft = this.drag.left - (e.clientX - this.drag.x);
+      },
+      onUp: () => {
+        if (!this.drag || !this.el) return;
+        const moved = this.el.scrollLeft - this.drag.left;
+        let cur = Math.round(this.el.scrollLeft / this.STEP);
+        if (Math.abs(moved) > 40 && cur === Math.round(this.drag.left / this.STEP)) cur += moved > 0 ? 1 : -1;
+        cur = Math.max(0, Math.min(this.N - 1, cur));
+        this.drag = null;
+        this.lastTouch = Date.now();
+        this.setState({ dragging: false });
+        this.goTo(cur);
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

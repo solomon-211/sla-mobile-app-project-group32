@@ -6,6 +6,19 @@ class SessionService {
   static const _userIdKey = 'signed_in_user_id';
   static const _rememberKey = 'remember_me';
 
+  static const _projectNameKey = 'project_name';
+
+  /// The project shown on the dashboard, or [fallback] if never renamed.
+  static Future<String> projectName({required String fallback}) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_projectNameKey) ?? fallback;
+  }
+
+  static Future<void> setProjectName(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_projectNameKey, name);
+  }
+
   static Future<void> signIn(int userId, {required bool remember}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_userIdKey, userId);

@@ -48,22 +48,22 @@ class TeamScreen extends StatelessWidget {
     if (draft == null || !context.mounted) return;
     await _save(
       context,
-      () => DatabaseHelper.instance.insertMember(draft),
-      success: '${draft.name} added to the team',
+      () => DatabaseHelper.instance.insertMember(draft.member),
+      success: '${draft.member.name} added to the team',
     );
   }
 
   Future<void> _editMember(BuildContext context, TeamMember member) async {
-    final edited = await showMemberFormDialog(
+    final draft = await showMemberFormDialog(
       context,
       member: member,
       takenEmails:
           members.where((m) => m.id != member.id).map((m) => m.email),
     );
-    if (edited == null || !context.mounted) return;
+    if (draft == null || !context.mounted) return;
     await _save(
       context,
-      () => DatabaseHelper.instance.updateMember(edited),
+      () => DatabaseHelper.instance.updateMember(draft.member),
       success: 'Profile updated',
     );
   }
@@ -97,18 +97,20 @@ class TeamScreen extends StatelessWidget {
     );
   }
 
+  /// Saves the change, reloads the shared data, then shows feedback.
   Future<void> _save(
     BuildContext context,
     Future<void> Function() write, {
     required String success,
-  }) async {
-    try {
-      await write();
-      await onChanged();
-      if (context.mounted) showMessage(context, success);
-    } catch (_) {
-      if (context.mounted) showMessage(context, 'Could not save the change.');
-    }
+  }) {
+    return runWithFeedback(
+      context,
+      () async {
+        await write();
+        await onChanged();
+      },
+      success: success,
+    );
   }
 
   Future<void> _switchUser(BuildContext context) async {
@@ -122,10 +124,7 @@ class TeamScreen extends StatelessWidget {
           children: [
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text(
-                'Switch user',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
+              child: Text('Switch user', style: AppText.section),
             ),
             for (final member in members)
               ListTile(
@@ -141,14 +140,18 @@ class TeamScreen extends StatelessWidget {
         ),
       ),
     );
-    if (chosen == null || chosen.id == currentUser.id) return;
-    try {
-      await SessionService.switchUser(chosen.id!);
-      await onChanged();
-      if (context.mounted) showMessage(context, 'Signed in as ${chosen.name}');
-    } catch (_) {
-      if (context.mounted) showMessage(context, 'Could not switch user.');
+    if (chosen == null || chosen.id == currentUser.id || !context.mounted) {
+      return;
     }
+    await runWithFeedback(
+      context,
+      () async {
+        await SessionService.switchUser(chosen.id!);
+        await onChanged();
+      },
+      success: 'Signed in as ${chosen.name}',
+      failure: 'Could not switch user.',
+    );
   }
 
   @override
@@ -177,14 +180,7 @@ class TeamScreen extends StatelessWidget {
           _buildSignedInCard(context),
           Padding(
             padding: const EdgeInsets.fromLTRB(2, 20, 2, 10),
-            child: Text(
-              'Members (${members.length})',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textDark,
-              ),
-            ),
+            child: Text('Members (${members.length})', style: AppText.section),
           ),
           Card(
             child: Column(
@@ -212,6 +208,8 @@ class TeamScreen extends StatelessWidget {
   }
 
   Widget _buildSignedInCard(BuildContext context) {
+    // Same green as the On Track badge, so "positive" looks the same everywhere.
+    final signedInStyle = SlaStyle.of(SlaStatus.onTrack);
     return Card(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(4, 4, 4, 14),
@@ -223,19 +221,16 @@ class TeamScreen extends StatelessWidget {
                 radius: 24,
                 filled: true,
               ),
-              title: Text(
-                currentUser.name,
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
+              title: Text(currentUser.name, style: AppText.cardTitle),
               subtitle: Text(
                 '${currentUser.role}\n${currentUser.email}',
-                style: const TextStyle(fontSize: 12),
+                style: AppText.caption,
               ),
               isThreeLine: true,
-              trailing: const StatusPill(
+              trailing: StatusPill(
                 label: 'Signed in',
-                background: Color(0xFFDDF1E6),
-                foreground: Color(0xFF14653F),
+                background: signedInStyle.background,
+                foreground: signedInStyle.foreground,
               ),
             ),
             Padding(
@@ -323,20 +318,20 @@ class _MemberTile extends StatelessWidget {
           text: member.name,
           children: [
             if (isCurrentUser)
-              const TextSpan(
+              TextSpan(
                 text: '  (You)',
-                style: TextStyle(fontSize: 12, color: AppColors.primary),
+                style: AppText.caption.copyWith(color: AppColors.primary),
               ),
           ],
         ),
-        style: const TextStyle(fontWeight: FontWeight.w700),
+        style: AppText.cardTitle,
       ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '${member.role} · $taskCount ${taskCount == 1 ? 'task' : 'tasks'}',
-            style: const TextStyle(fontSize: 12),
+            style: AppText.caption,
           ),
           if (badges.isNotEmpty) ...[
             const SizedBox(height: 6),

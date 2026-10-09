@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -9,6 +10,13 @@ class DonutSegment {
   final Color color;
 
   const DonutSegment(this.value, this.color);
+
+  @override
+  bool operator ==(Object other) =>
+      other is DonutSegment && other.value == value && other.color == color;
+
+  @override
+  int get hashCode => Object.hash(value, color);
 }
 
 /// Ring chart drawn with CustomPaint, with a number and label in the middle.
@@ -38,20 +46,10 @@ class DonutChart extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                centerValue,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textDark,
-                ),
-              ),
+              Text(centerValue, style: AppText.heading),
               Text(
                 centerLabel,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textMuted,
-                ),
+                style: AppText.caption.copyWith(fontSize: 11),
               ),
             ],
           ),
@@ -90,6 +88,10 @@ class _DonutPainter extends CustomPainter {
     }
   }
 
+  /// Only repaint when the numbers or colours actually changed.
   @override
-  bool shouldRepaint(_DonutPainter oldDelegate) => true;
+  bool shouldRepaint(_DonutPainter oldDelegate) {
+    return oldDelegate.strokeWidth != strokeWidth ||
+        !listEquals(oldDelegate.segments, segments);
+  }
 }

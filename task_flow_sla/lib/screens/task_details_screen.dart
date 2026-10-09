@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../app_router.dart';
@@ -25,6 +27,18 @@ class TaskDetailsScreen extends StatefulWidget {
 
 class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
   bool _loading = true;
+
+  /// Set when the task could not be read from the database. Different from
+  /// [_task] being null, which means the task no longer exists.
+  String? _error;
+
+  /// True while a status change is being saved. Disables the status controls
+  /// so a double tap cannot save the same change twice.
+  bool _updating = false;
+
+  /// Rebuilds every minute so the SLA card and time label stay current.
+  Timer? _clock;
+
   Task? _task;
   TeamMember? _assignee;
   List<TaskActivity> _activities = [];
@@ -33,6 +47,15 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
   void initState() {
     super.initState();
     _load();
+    _clock = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _clock?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -47,18 +70,31 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
         _assignee = members.where((m) => m.id == task?.assigneeId).firstOrNull;
         _activities = activities;
         _loading = false;
+        _error = null;
       });
-    } catch (_) {
+    } catch (error, stack) {
+      logError('Could not load task ${widget.taskId}', error, stack);
       if (!mounted) return;
-      setState(() => _loading = false);
-      showMessage(context, 'Could not load this task.');
+      setState(() {
+        _loading = false;
+        _error = 'Could not load this task.';
+      });
     }
+  }
+
+  void _retry() {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    _load();
   }
 
   /// Saves the new status to the database, then updates the screen.
   Future<void> _changeStatus(TaskStatus status) async {
     final task = _task;
-    if (task == null || task.status == status) return;
+    if (task == null || task.status == status || _updating) return;
+    setState(() => _updating = true);
     try {
       final db = DatabaseHelper.instance;
       final updated = await db.updateTaskStatus(task, status);
@@ -69,8 +105,11 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
         _task = updated;
         _activities = activities;
       });
-    } catch (_) {
+    } catch (error, stack) {
+      logError('Could not update status', error, stack);
       if (mounted) showMessage(context, 'Could not update the status.');
+    } finally {
+      if (mounted) setState(() => _updating = false);
     }
   }
 
@@ -96,7 +135,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
       if (!mounted) return;
       showMessage(context, 'Task deleted');
       Navigator.pop(context);
-    } catch (_) {
+    } catch (error, stack) {
+      logError('Could not delete task', error, stack);
       if (mounted) showMessage(context, 'Could not delete the task.');
     }
   }
@@ -123,17 +163,30 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
             ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : task == null
-              ? const EmptyState(
-                  icon: Icons.search_off,
-                  title: 'Task not found',
-                  message: 'It may have been deleted.',
-                )
-              : _buildContent(task),
+      body: _buildBody(task),
       bottomNavigationBar: task == null ? null : _buildActions(task),
     );
+  }
+
+  Widget _buildBody(Task? task) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return EmptyState(
+        icon: Icons.error_outline,
+        title: _error!,
+        message: 'Check your storage and try again.',
+        actionLabel: 'Try again',
+        onAction: _retry,
+      );
+    }
+    if (task == null) {
+      return const EmptyState(
+        icon: Icons.search_off,
+        title: 'Task not found',
+        message: 'It may have been deleted.',
+      );
+    }
+    return _buildContent(task);
   }
 
   Widget _buildContent(Task task) {
@@ -146,16 +199,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Text(
-                task.title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textDark,
-                ),
-              ),
-            ),
+            Expanded(child: Text(task.title, style: AppText.heading)),
             const SizedBox(width: 12),
             Padding(
               padding: const EdgeInsets.only(top: 4),
@@ -177,12 +221,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
               TextSpan(text: ' · ${task.code}'),
             ],
           ),
-          style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+          style: AppText.caption.copyWith(fontSize: 13),
         ),
         const SizedBox(height: 12),
         Text(
           task.description.isEmpty ? 'No description.' : task.description,
-          style: const TextStyle(height: 1.4, color: AppColors.textDark),
+          style: AppText.body.copyWith(height: 1.4),
         ),
         const SizedBox(height: 16),
         const Divider(),
@@ -196,7 +240,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
               Expanded(
                 child: Text(
                   _assignee?.name ?? 'Unassigned',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  style: AppText.bodyStrong,
                 ),
               ),
             ],
@@ -206,10 +250,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
         _DetailRow(
           icon: Icons.calendar_today_outlined,
           label: 'Due date',
-          child: Text(
-            formatDateTime(task.dueDate),
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
+          child: Text(formatDateTime(task.dueDate), style: AppText.bodyStrong),
         ),
         const Divider(),
         _DetailRow(
@@ -217,7 +258,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
           label: 'Priority',
           child: Text(
             task.priority.label,
-            style: TextStyle(
+            style: AppText.bodyStrong.copyWith(
               fontWeight: FontWeight.w700,
               color: priorityColor(task.priority),
             ),
@@ -241,24 +282,20 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                 for (final option in TaskStatus.values)
                   DropdownMenuItem(value: option, child: Text(option.label)),
               ],
-              onChanged: (value) {
-                if (value != null) _changeStatus(value);
-              },
+              // A null onChanged disables the dropdown while saving.
+              onChanged: _updating
+                  ? null
+                  : (value) {
+                      if (value != null) _changeStatus(value);
+                    },
             ),
           ),
         ),
         const Divider(),
         const SizedBox(height: 16),
-        _SlaCard(
-          task: task,
-          status: status,
-          now: now,
-        ),
+        _SlaCard(task: task, status: status, now: now),
         const SizedBox(height: 20),
-        const Text(
-          'Activity',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-        ),
+        const Text('Activity', style: AppText.cardTitle),
         const SizedBox(height: 8),
         for (final (index, activity) in _activities.indexed)
           Padding(
@@ -275,16 +312,11 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                 Expanded(
                   child: Text(
                     activity.message,
-                    style: const TextStyle(fontSize: 13),
+                    style: AppText.body.copyWith(fontSize: 13),
                   ),
                 ),
-                Text(
-                  formatShortDate(activity.createdAt),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textMuted,
-                  ),
-                ),
+                const SizedBox(width: 8),
+                Text(formatShortDate(activity.createdAt), style: AppText.caption),
               ],
             ),
           ),
@@ -300,17 +332,24 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: _edit,
+                onPressed: _updating ? null : _edit,
                 child: const Text('Edit Task'),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton(
-                onPressed: () => _changeStatus(
-                  task.isDone ? TaskStatus.inProgress : TaskStatus.done,
-                ),
-                child: Text(task.isDone ? 'Reopen Task' : 'Mark as Done'),
+                onPressed: _updating
+                    ? null
+                    : () => _changeStatus(
+                          task.isDone ? TaskStatus.inProgress : TaskStatus.done,
+                        ),
+                child: _updating
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(task.isDone ? 'Reopen Task' : 'Mark as Done'),
               ),
             ),
           ],
@@ -320,6 +359,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
   }
 }
 
+/// One "label: value" line. The label takes 2/5 of the width and the value
+/// 3/5, so both grow with the screen and with large system font sizes.
 class _DetailRow extends StatelessWidget {
   const _DetailRow({
     required this.icon,
@@ -339,14 +380,11 @@ class _DetailRow extends StatelessWidget {
         children: [
           Icon(icon, size: 20, color: AppColors.textMuted),
           const SizedBox(width: 12),
-          SizedBox(
-            width: 104,
-            child: Text(
-              label,
-              style: const TextStyle(color: AppColors.textMuted),
-            ),
+          Expanded(
+            flex: 2,
+            child: Text(label, style: AppText.bodyMuted),
           ),
-          Expanded(child: child),
+          Expanded(flex: 3, child: child),
         ],
       ),
     );
@@ -365,19 +403,6 @@ class _SlaCard extends StatelessWidget {
   final SlaStatus status;
   final DateTime now;
 
-  String get _explanation {
-    switch (status) {
-      case SlaStatus.completed:
-        return 'This task is done, so it no longer counts against the SLA.';
-      case SlaStatus.overdue:
-        return 'The deadline has passed and the task is not done.';
-      case SlaStatus.atRisk:
-        return 'Tasks become At Risk inside ${Sla.defaultAtRiskHours} hours of the deadline.';
-      case SlaStatus.onTrack:
-        return 'More than ${Sla.defaultAtRiskHours} hours remain before the deadline.';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final style = SlaStyle.of(status);
@@ -395,8 +420,7 @@ class _SlaCard extends StatelessWidget {
         children: [
           Text(
             'SLA Status',
-            style: TextStyle(
-              fontSize: 12,
+            style: AppText.caption.copyWith(
               fontWeight: FontWeight.w700,
               color: style.foreground,
             ),
@@ -409,8 +433,7 @@ class _SlaCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   '${status.label} · ${Sla.describe(task, now: now)}',
-                  style: TextStyle(
-                    fontSize: 15,
+                  style: AppText.cardTitle.copyWith(
                     fontWeight: FontWeight.w700,
                     color: style.foreground,
                   ),
@@ -428,8 +451,9 @@ class _SlaCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            '${(used * 100).round()}% of the time window used. $_explanation',
-            style: TextStyle(fontSize: 12, color: style.foreground),
+            '${(used * 100).round()}% of the time window used. '
+            '${Sla.explain(task, now: now)}',
+            style: AppText.caption.copyWith(color: style.foreground),
           ),
         ],
       ),

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../app_router.dart';
@@ -10,25 +11,31 @@ import '../widgets/dialogs.dart';
 import '../widgets/task_card.dart';
 
 /// Task List: search, SLA filter chips and tasks grouped by urgency.
+///
+/// The selected filter lives in HomeShell (so dashboard cards can set it);
+/// the search text and sort order are local state of this screen.
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({
     super.key,
     required this.tasks,
-    required this.members,
+    required this.membersById,
+    required this.filter,
+    required this.onFilterChanged,
     required this.onChanged,
     required this.onOpenMenu,
-    this.initialFilter,
   });
 
   final List<Task> tasks;
-  final List<TeamMember> members;
+  final Map<int, TeamMember> membersById;
+
+  /// SLA statuses to show. Null means "All".
+  final Set<SlaStatus>? filter;
+  final ValueChanged<Set<SlaStatus>?> onFilterChanged;
+
   final Future<void> Function() onChanged;
 
   /// Opens the navigation drawer owned by HomeShell.
   final VoidCallback onOpenMenu;
-
-  /// Pre-selected chip when arriving from a dashboard card.
-  final SlaStatus? initialFilter;
 
   @override
   State<TaskListScreen> createState() => _TaskListScreenState();
@@ -39,9 +46,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
   String _query = '';
 
-  /// Selected SLA chip. Null means "All".
-  late SlaStatus? _filter = widget.initialFilter;
-
   /// Earliest deadline first when true.
   bool _soonestFirst = true;
 
@@ -51,14 +55,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
     super.dispose();
   }
 
-  /// True when the task title, category or assignee contains the search text.
-  bool _matchesSearch(Task task, Map<int, TeamMember> membersById) {
+  /// True when the task title, description, category or assignee contains
+  /// the search text.
+  bool _matchesSearch(Task task) {
     final query = _query.trim().toLowerCase();
     if (query.isEmpty) return true;
-    final assignee = membersById[task.assigneeId]?.name ?? '';
-    return task.title.toLowerCase().contains(query) ||
-        task.category.toLowerCase().contains(query) ||
-        assignee.toLowerCase().contains(query);
+    final assignee = widget.membersById[task.assigneeId]?.name ?? '';
+    return [task.title, task.description, task.category, assignee]
+        .any((text) => text.toLowerCase().contains(query));
   }
 
   Future<void> _openDetails(Task task) async {
@@ -80,8 +84,12 @@ class _TaskListScreenState extends State<TaskListScreen> {
       case TaskCardAction.edit:
         await _openForm(task);
       case TaskCardAction.markDone:
-        await _runAndRefresh(
-          () => DatabaseHelper.instance.updateTaskStatus(task, TaskStatus.done),
+        await runWithFeedback(
+          context,
+          () async {
+            await DatabaseHelper.instance.updateTaskStatus(task, TaskStatus.done);
+            await widget.onChanged();
+          },
           success: '"${task.title}" marked as done',
         );
       case TaskCardAction.delete:
@@ -92,31 +100,22 @@ class _TaskListScreenState extends State<TaskListScreen> {
           confirmLabel: 'Delete',
           destructive: true,
         );
-        if (!confirmed) return;
-        await _runAndRefresh(
-          () => DatabaseHelper.instance.deleteTask(task.id!),
+        if (!confirmed || !mounted) return;
+        await runWithFeedback(
+          context,
+          () async {
+            await DatabaseHelper.instance.deleteTask(task.id!);
+            await widget.onChanged();
+          },
           success: 'Task deleted',
         );
-    }
-  }
-
-  Future<void> _runAndRefresh(
-    Future<void> Function() write, {
-    required String success,
-  }) async {
-    try {
-      await write();
-      await widget.onChanged();
-      if (mounted) showMessage(context, success);
-    } catch (_) {
-      if (mounted) showMessage(context, 'Could not save the change.');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final membersById = {for (final m in widget.members) m.id!: m};
+    final filter = widget.filter;
 
     // Work out each task's SLA status once per build.
     final slaOf = {
@@ -126,8 +125,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
     // 1. search  2. chip filter  3. sort by deadline
     final visible = widget.tasks.where((task) {
-      final matchesFilter = _filter == null || slaOf[task] == _filter;
-      return matchesFilter && _matchesSearch(task, membersById);
+      final matchesFilter = filter == null || filter.contains(slaOf[task]);
+      return matchesFilter && _matchesSearch(task);
     }).toList()
       ..sort((a, b) => _soonestFirst
           ? a.dueDate.compareTo(b.dueDate)
@@ -142,10 +141,18 @@ class _TaskListScreenState extends State<TaskListScreen> {
       (
         'Needs attention',
         AppColors.overdue,
-        withStatus({SlaStatus.overdue, SlaStatus.atRisk}),
+        withStatus(Sla.needsAttention),
       ),
-      ('Upcoming', AppColors.onTrack, withStatus({SlaStatus.onTrack})),
-      ('Completed', AppColors.completed, withStatus({SlaStatus.completed})),
+      (
+        SlaStatus.onTrack.label,
+        AppColors.onTrack,
+        withStatus({SlaStatus.onTrack}),
+      ),
+      (
+        SlaStatus.completed.label,
+        AppColors.completed,
+        withStatus({SlaStatus.completed}),
+      ),
     ];
     final rows = <Object>[
       for (final (title, color, sectionTasks) in sections)
@@ -228,7 +235,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         padding: const EdgeInsets.only(bottom: 10),
                         child: TaskCard(
                           task: task,
-                          assignee: membersById[task.assigneeId],
+                          assignee: widget.membersById[task.assigneeId],
                           slaStatus: slaOf[task]!,
                           onTap: () => _openDetails(task),
                           onAction: (action) => _handleAction(task, action),
@@ -243,32 +250,34 @@ class _TaskListScreenState extends State<TaskListScreen> {
   }
 
   Widget _buildFilterChips(Map<Task, SlaStatus> slaOf) {
-    Widget chip(String label, SlaStatus? status) {
-      final selected = _filter == status;
+    int count(Set<SlaStatus> statuses) {
+      return slaOf.values.where(statuses.contains).length;
+    }
+
+    Widget chip(String label, Set<SlaStatus>? statuses) {
+      final selected = setEquals(widget.filter, statuses);
+      final countText =
+          statuses == null ? widget.tasks.length : count(statuses);
       return Padding(
         padding: const EdgeInsets.only(right: 8),
         child: FilterChip(
-          label: Text(label),
+          label: Text('$label ($countText)'),
           selected: selected,
           showCheckmark: false,
           backgroundColor: AppColors.surface,
           selectedColor: AppColors.primary,
-          labelStyle: TextStyle(
+          labelStyle: AppText.bodyStrong.copyWith(
             color: selected ? Colors.white : AppColors.textDark,
-            fontWeight: FontWeight.w600,
           ),
           side: BorderSide(
             color: selected ? AppColors.primary : AppColors.border,
           ),
           shape: const StadiumBorder(),
-          // Tapping a chip changes the filter and rebuilds the list.
-          onSelected: (_) => setState(() => _filter = status),
+          // Tapping a chip asks HomeShell to change the filter; HomeShell
+          // calls setState and this list rebuilds with the new filter.
+          onSelected: (_) => widget.onFilterChanged(statuses),
         ),
       );
-    }
-
-    int count(SlaStatus status) {
-      return slaOf.values.where((s) => s == status).length;
     }
 
     return SizedBox(
@@ -277,14 +286,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          chip('All (${widget.tasks.length})', null),
-          for (final status in SlaStatus.values)
-            chip(
-              status == SlaStatus.completed
-                  ? 'Done (${count(status)})'
-                  : '${status.label} (${count(status)})',
-              status,
-            ),
+          chip('All', null),
+          chip('Needs attention', Sla.needsAttention),
+          for (final status in SlaStatus.values) chip(status.label, {status}),
         ],
       ),
     );
@@ -300,19 +304,20 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = TextStyle(
-      fontSize: 12,
-      fontWeight: FontWeight.w700,
-      letterSpacing: 0.6,
-      color: color,
-    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(2, 10, 2, 10),
       child: Row(
         children: [
           CircleAvatar(radius: 4, backgroundColor: color),
           const SizedBox(width: 8),
-          Text('${title.toUpperCase()} · $count', style: style),
+          Text(
+            '${title.toUpperCase()} · $count',
+            style: AppText.caption.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+              color: color,
+            ),
+          ),
         ],
       ),
     );

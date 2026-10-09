@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tempo · Create account</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&amp;family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2B2E2D}a:hover{color:#000}
+.scroll{scrollbar-width:none}.scroll::-webkit-scrollbar{display:none}
+.t-hero{animation:t-hero .9s cubic-bezier(.77,0,.18,1) both}
+@keyframes t-hero{from{height:340px}to{height:200px}}
+.t-mask{overflow:hidden;display:block}
+.t-rise{display:block;animation:t-rise .8s cubic-bezier(.2,.8,.2,1) both}
+@keyframes t-rise{from{transform:translateY(110%)}to{transform:translateY(0)}}
+.t-up{animation:t-up .6s cubic-bezier(.2,.8,.2,1) both}
+@keyframes t-up{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+.t-field{transition:border-color .2s}
+.t-field:focus-within{border-color:#2B2E2D}
+.t-bar{transition:background .3s}
+.t-btn{transition:scale .15s ease}
+.t-btn:active{scale:.96}
+.t-btn .t-arrow{transition:width .35s cubic-bezier(.65,0,.35,1)}
+.t-btn:hover .t-arrow{width:72px}
+.t-nudge{animation:t-nudge 2.4s ease-in-out 1.4s infinite}
+@keyframes t-nudge{0%,70%,100%{transform:translateX(0)}80%{transform:translateX(5px)}90%{transform:translateX(-1px)}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #E6E8E7; font-family: Manrope, sans-serif; color: #2B2E2D">
+
+<!-- hero card -->
+<div class="t-hero" style="position: absolute; top: 12px; left: 12px; right: 12px; height: 200px; border-radius: 32px; background: #2B2E2D; color: #F5F6F6; overflow: hidden">
+<a href="Landing.dc.html" aria-label="Back" style="position: absolute; top: 16px; left: 16px; width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.06); display: flex; align-items: center; justify-content: center">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F5F6F6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg>
+</a>
+<div style="position: absolute; left: 22px; right: 22px; bottom: 22px">
+<span class="t-mask"><span class="t-rise" style="font-family: Sora, sans-serif; font-size: 28px; line-height: 34px; font-weight: 700; letter-spacing: -1px; animation-delay: .5s">Create your account</span></span>
+<span class="t-mask"><span class="t-rise" style="margin-top: 4px; font-size: 14px; font-weight: 600; color: #A7ACAA; animation-delay: .62s">Join your team and start tracking tasks.</span></span>
+</div>
+</div>
+
+<!-- form -->
+<form class="scroll" style="position: absolute; top: 224px; left: 0; right: 0; bottom: 0; overflow-y: auto; padding: 4px 20px 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; margin: 0">
+
+<label class="t-up t-field" style="display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 18px; border-radius: 20px; background: #FFFFFF; border: 1.5px solid transparent; box-sizing: border-box; flex-shrink: 0; animation-delay: .55s">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5F6462" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Full name</span>
+<input type="text" placeholder="Full name" style="flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: 600 15px Manrope, sans-serif; color: #2B2E2D">
+</label>
+
+<label class="t-up t-field" style="display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 18px; border-radius: 20px; background: #FFFFFF; border: 1.5px solid transparent; box-sizing: border-box; flex-shrink: 0; animation-delay: .62s">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5F6462" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M3 7l9 6 9-6"></path></svg>
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Work email</span>
+<input type="email" placeholder="Work email" style="flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: 600 15px Manrope, sans-serif; color: #2B2E2D">
+</label>
+
+<label class="t-up t-field" style="display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 14px 0 18px; border-radius: 20px; background: #FFFFFF; border: 1.5px solid transparent; box-sizing: border-box; flex-shrink: 0; animation-delay: .69s">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5F6462" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="3"></rect><path d="M9 7V5h6v2"></path></svg>
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Role</span>
+<select style="flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: 600 15px Manrope, sans-serif; color: #2B2E2D; cursor: pointer">
+<option>Project Manager</option><option>Backend Developer</option><option>UI/UX Designer</option><option>Mobile Developer</option>
+</select>
+</label>
+
+<div class="t-up" style="display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; animation-delay: .76s">
+<label class="t-field" style="display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 6px 0 18px; border-radius: 20px; background: #FFFFFF; border: 1.5px solid transparent; box-sizing: border-box">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5F6462" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="3"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Password</span>
+<input type="{{pwType}}" placeholder="Password" value="{{pw}}" onChange="{{onPw}}" style="flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: 600 15px Manrope, sans-serif; color: #2B2E2D">
+<button type="button" aria-label="Show password" onClick="{{togglePw}}" style="width: 44px; height: 44px; border: 0; border-radius: 14px; background: #F1F2F2; display: flex; align-items: center; justify-content: center; cursor: pointer">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2B2E2D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+</button>
+</label>
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 6px">
+<div aria-hidden="true" style="flex: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px">
+<sc-for list="{{bars}}" as="b" hint-placeholder-count="4">
+<span class="t-bar" style="height: 6px; border-radius: 3px; background: {{b.c}}"></span>
+</sc-for>
+</div>
+<span style="font-size: 12px; font-weight: 800; color: {{strengthColor}}; min-width: 96px; text-align: right">{{strength}}</span>
+</div>
+</div>
+
+<label class="t-up t-field" style="display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 18px; border-radius: 20px; background: #FFFFFF; border: 1.5px solid {{confirmBorder}}; box-sizing: border-box; flex-shrink: 0; animation-delay: .83s">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5F6462" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"></path><path d="M9 12l2 2 4-4"></path></svg>
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Confirm password</span>
+<input type="password" placeholder="Confirm password" value="{{pw2}}" onChange="{{onPw2}}" style="flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: 600 15px Manrope, sans-serif; color: #2B2E2D">
+</label>
+<sc-if value="{{mismatch}}" hint-placeholder-val="{{ false }}">
+<span style="padding-left: 6px; font-size: 13px; font-weight: 700; color: #B3361A">Passwords don't match</span>
+</sc-if>
+
+<a href="Dashboard.dc.html" class="t-btn t-up" style="flex-shrink: 0; height: 64px; border-radius: 999px; background: #2B2E2D; color: #F5F6F6; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 26px; font-weight: 800; font-size: 16px; text-decoration: none; box-shadow: 0 12px 30px rgba(43,46,45,.22); animation-delay: .97s">
+Create account
+<span class="t-arrow" style="width: 48px; height: 48px; border-radius: 999px; background: #6F8F5E; display: flex; align-items: center; justify-content: center">
+<svg class="t-nudge" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#121A0D" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+</span>
+</a>
+
+<div class="t-up" style="text-align: center; padding-top: 6px; font-size: 14px; font-weight: 500; color: #5F6462; flex-shrink: 0; animation-delay: 1.04s">
+Already have an account? <a href="Main.dc.html" style="font-weight: 800">Sign in</a>
+</div>
+</form>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { pw: '', pw2: '', showPw: false };
+  }
+  renderVals() {
+    const pw = this.state.pw;
+    let score = 0;
+    if (pw.length >= 8) score++;
+    if (/[0-9]/.test(pw)) score++;
+    if (/[A-Z]/.test(pw)) score++;
+    if (/[^A-Za-z0-9]/.test(pw)) score++;
+    if (pw.length > 0 && score === 0) score = 1;
+    const LV = [
+      ['Use 8+ characters', '#5F6462', '#DADDDC'],
+      ['Weak', '#B3361A', '#D9785F'],
+      ['Fair', '#8A5A00', '#D9A441'],
+      ['Good', '#3E5534', '#8FAA7F'],
+      ['Strong', '#3E5534', '#6F8F5E']
+    ];
+    const lv = LV[score];
+    const bars = [0, 1, 2, 3].map((n) => ({ c: n < score ? lv[2] : '#DADDDC' }));
+    const mismatch = this.state.pw2.length > 0 && this.state.pw2 !== pw;
+    return {
+      pw, pw2: this.state.pw2,
+      pwType: this.state.showPw ? 'text' : 'password',
+      onPw: (e) => this.setState({ pw: e.target.value }),
+      onPw2: (e) => this.setState({ pw2: e.target.value }),
+      togglePw: () => this.setState({ showPw: !this.state.showPw }),
+      bars, strength: lv[0], strengthColor: lv[1],
+      mismatch,
+      confirmBorder: mismatch ? '#B3361A' : 'transparent'
+    };
+  }
+}
+</script>
+</body>
+</html>

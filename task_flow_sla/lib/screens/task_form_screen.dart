@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../models/team_member.dart';
 import '../services/database_helper.dart';
+import '../services/session_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 import '../utils/validators.dart';
@@ -31,8 +32,13 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   late TaskPriority _priority = widget.task?.priority ?? TaskPriority.medium;
   late TaskStatus _status = widget.task?.status ?? TaskStatus.todo;
 
+  /// The assignee the form opened with, used to detect unsaved changes.
+  /// For a new task this becomes the signed-in user once members load.
+  late int? _initialAssigneeId = widget.task?.assigneeId;
+
   List<TeamMember> _members = [];
   bool _loadingMembers = true;
+  String? _loadError;
   bool _saving = false;
 
   /// Errors appear after the first failed submit, then update as the user
@@ -40,6 +46,18 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   AutovalidateMode _autovalidateMode = AutovalidateMode.disabled;
 
   bool get _isEditing => widget.task != null;
+
+  /// True when any field differs from what the form opened with.
+  bool get _hasChanges {
+    final task = widget.task;
+    return _titleController.text.trim() != (task?.title ?? '') ||
+        _descriptionController.text.trim() != (task?.description ?? '') ||
+        _category != (task?.category ?? taskCategories.first) ||
+        _assigneeId != _initialAssigneeId ||
+        _dueDate != task?.dueDate ||
+        _priority != (task?.priority ?? TaskPriority.medium) ||
+        _status != (task?.status ?? TaskStatus.todo);
+  }
 
   @override
   void initState() {
@@ -55,17 +73,31 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   }
 
   Future<void> _loadMembers() async {
+    setState(() {
+      _loadingMembers = true;
+      _loadError = null;
+    });
     try {
       final members = await DatabaseHelper.instance.getMembers();
+      final userId = await SessionService.currentUserId();
       if (!mounted) return;
       setState(() {
         _members = members;
         _loadingMembers = false;
+        // New tasks are assigned to the signed-in user by default.
+        if (!_isEditing && _assigneeId == null) {
+          final me = members.where((m) => m.id == userId).firstOrNull;
+          _assigneeId = me?.id;
+          _initialAssigneeId = me?.id;
+        }
       });
-    } catch (_) {
+    } catch (error, stack) {
+      logError('Could not load members', error, stack);
       if (!mounted) return;
-      setState(() => _loadingMembers = false);
-      showMessage(context, 'Could not load team members.');
+      setState(() {
+        _loadingMembers = false;
+        _loadError = 'Could not load team members.';
+      });
     }
   }
 
@@ -90,12 +122,29 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
       context: context,
       initialTime: TimeOfDay.fromDateTime(current ?? initial),
     );
-    if (time == null) return;
+    if (time == null || !mounted) return;
 
     final picked =
         DateTime(date.year, date.month, date.day, time.hour, time.minute);
     setState(() => _dueDate = picked);
     field.didChange(picked);
+  }
+
+  /// Called when the user presses Back. Leaves straight away when nothing
+  /// changed, otherwise asks before throwing the changes away.
+  Future<void> _confirmLeave() async {
+    if (_saving) return;
+    if (_hasChanges) {
+      final discard = await showConfirmDialog(
+        context,
+        title: 'Discard changes?',
+        message: 'Your changes to this task have not been saved.',
+        confirmLabel: 'Discard',
+        destructive: true,
+      );
+      if (!discard || !mounted) return;
+    }
+    Navigator.pop(context);
   }
 
   Future<void> _save() async {
@@ -153,8 +202,10 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
       }
       if (!mounted) return;
       showMessage(context, _isEditing ? 'Task updated' : 'Task created');
+      // Navigator.pop skips PopScope, so no "discard changes" prompt here.
       Navigator.pop(context);
-    } catch (_) {
+    } catch (error, stack) {
+      logError('Could not save task', error, stack);
       if (!mounted) return;
       setState(() => _saving = false);
       showMessage(context, 'Could not save the task. Please try again.');
@@ -163,23 +214,45 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: Text(_isEditing ? 'Edit Task' : 'Create Task'),
+    final ready = !_loadingMembers && _loadError == null;
+
+    // canPop is false so every Back press goes through _confirmLeave.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _confirmLeave();
+      },
+      child: Scaffold(
         backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.textDark,
-        shape: const Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      body: _loadingMembers
-          ? const Center(child: CircularProgressIndicator())
-          : _buildForm(),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: ElevatedButton(
-            onPressed: _saving || _loadingMembers ? null : _save,
-            child: Text(_isEditing ? 'Save Changes' : 'Create Task'),
+        appBar: AppBar(
+          title: Text(_isEditing ? 'Edit Task' : 'Create Task'),
+          backgroundColor: AppColors.surface,
+          foregroundColor: AppColors.textDark,
+          shape: const Border(bottom: BorderSide(color: AppColors.border)),
+        ),
+        body: _loadingMembers
+            ? const Center(child: CircularProgressIndicator())
+            : _loadError != null
+                ? EmptyState(
+                    icon: Icons.error_outline,
+                    title: _loadError!,
+                    message: 'The form needs the team list to assign tasks.',
+                    actionLabel: 'Try again',
+                    onAction: _loadMembers,
+                  )
+                : _buildForm(),
+        bottomNavigationBar: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: ElevatedButton(
+              onPressed: _saving || !ready ? null : _save,
+              child: _saving
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(_isEditing ? 'Save Changes' : 'Create Task'),
+            ),
           ),
         ),
       ),
@@ -187,6 +260,12 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   }
 
   Widget _buildForm() {
+    // A task can only be marked Done after it exists.
+    final statusOptions = [
+      for (final status in TaskStatus.values)
+        if (_isEditing || status != TaskStatus.done) status,
+    ];
+
     return Form(
       key: _formKey,
       autovalidateMode: _autovalidateMode,
@@ -228,7 +307,11 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
           ),
           const _FieldLabel('Assign to'),
           DropdownButtonFormField<int>(
-            initialValue: _assigneeId,
+            // Only use the saved assignee if they are still in the list,
+            // otherwise the dropdown would have a value with no matching item.
+            initialValue: _members.any((m) => m.id == _assigneeId)
+                ? _assigneeId
+                : null,
             isExpanded: true,
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.person_outline),
@@ -287,7 +370,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
             initialValue: _status,
             decoration: const InputDecoration(prefixIcon: Icon(Icons.notes)),
             items: [
-              for (final status in TaskStatus.values)
+              for (final status in statusOptions)
                 DropdownMenuItem(value: status, child: Text(status.label)),
             ],
             onChanged: (value) => setState(() => _status = value!),
@@ -308,14 +391,7 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 14, bottom: 6),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textDark,
-        ),
-      ),
+      child: Text(text, style: AppText.label),
     );
   }
 }

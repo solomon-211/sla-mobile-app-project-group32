@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tempo · Dashboard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&amp;family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#8FAA7F}a:hover{color:#A9BF9C}
+.scroll{scrollbar-width:none}.scroll::-webkit-scrollbar{display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #222524; font-family: Manrope, sans-serif; color: #F5F6F6">
+<div class="scroll" style="position: absolute; inset: 0; overflow-y: auto; padding: 20px 16px 112px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px">
+
+<!-- header -->
+<header style="display: flex; align-items: center; gap: 12px">
+<div style="width: 48px; height: 48px; border-radius: 50%; background: #6F8F5E; color: #121A0D; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; flex-shrink: 0">AK</div>
+<div style="flex: 1; display: flex; flex-direction: column">
+<span style="font-size: 13px; color: #A7ACAA; font-weight: 600">Good morning,</span>
+<span style="font-size: 17px; font-weight: 800">Amina</span>
+</div>
+<a href="CreateTask.dc.html" aria-label="Create task" style="width: 46px; height: 46px; border-radius: 50%; background: #F5F6F6; display: flex; align-items: center; justify-content: center">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2B2E2D" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+</a>
+<button aria-label="Notifications, 1 new" style="position: relative; width: 46px; height: 46px; border-radius: 50%; background: #2E3231; border: 1px solid #3B403E; display: flex; align-items: center; justify-content: center; cursor: pointer">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F5F6F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 21h4"></path></svg>
+<span style="position: absolute; top: 10px; right: 11px; width: 8px; height: 8px; border-radius: 50%; background: #6F8F5E"></span>
+</button>
+</header>
+
+<!-- title -->
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 6px 4px 0">
+<h1 style="margin: 0; font-family: Sora, sans-serif; font-size: 30px; line-height: 36px; font-weight: 700; letter-spacing: -1px">Mobile Banking v2</h1>
+<span style="font-size: 14px; color: #A7ACAA; font-weight: 600">Sprint 3 · ends Oct 18</span>
+</div>
+
+<!-- progress card -->
+<section style="background: #F5F6F6; color: #2B2E2D; border-radius: 28px; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; align-items: flex-end; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 13px; font-weight: 700; color: #535856">Project progress</span>
+<span style="font-family: Sora, sans-serif; font-size: 48px; line-height: 52px; font-weight: 700; letter-spacing: -2px">62%</span>
+</div>
+<div style="text-align: right; display: flex; flex-direction: column; gap: 2px">
+<span style="font-family: Sora, sans-serif; font-size: 22px; font-weight: 700">13<span style="color: #7D8280; font-size: 16px">/21</span></span>
+<span style="font-size: 12px; font-weight: 600; color: #535856">tasks completed</span>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(21, minmax(0, 1fr)); gap: 3px; height: 28px">
+<sc-for list="{{bars}}" as="b" hint-placeholder-count="21">
+<div style="border-radius: 4px; background: {{b.color}}"></div>
+</sc-for>
+</div>
+</section>
+
+<!-- SLA tiles -->
+<section aria-label="SLA status counts" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<div style="background: #6F8F5E; color: #121A0D; border-radius: 24px; padding: 16px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<div style="width: 36px; height: 36px; border-radius: 50%; background: #121A0D; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6F8F5E" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg></div>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#121A0D" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"></path></svg>
+</div>
+<div><div style="font-family: Sora, sans-serif; font-size: 32px; line-height: 36px; font-weight: 700">5</div><div style="font-size: 13px; font-weight: 700">On Track</div></div>
+</div>
+<div style="background: #2E3231; border: 1px solid #3B403E; border-radius: 24px; padding: 16px; display: flex; flex-direction: column; gap: 14px">
+<div style="width: 36px; height: 36px; border-radius: 50%; background: #D9A441; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2B2E2D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg></div>
+<div><div style="font-family: Sora, sans-serif; font-size: 32px; line-height: 36px; font-weight: 700">2</div><div style="font-size: 13px; font-weight: 700; color: #E3BF73">At Risk</div></div>
+</div>
+<div style="background: #2E3231; border: 1px solid #3B403E; border-radius: 24px; padding: 16px; display: flex; flex-direction: column; gap: 14px">
+<div style="width: 36px; height: 36px; border-radius: 50%; background: #D9785F; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2B2E2D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l2.5 2.5"></path></svg></div>
+<div><div style="font-family: Sora, sans-serif; font-size: 32px; line-height: 36px; font-weight: 700">1</div><div style="font-size: 13px; font-weight: 700; color: #E59C88">Overdue</div></div>
+</div>
+<div style="background: #2E3231; border: 1px solid #3B403E; border-radius: 24px; padding: 16px; display: flex; flex-direction: column; gap: 14px">
+<div style="width: 36px; height: 36px; border-radius: 50%; background: #F5F6F6; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2B2E2D" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l4 4 8-9M12 16l1 1 8-9"></path></svg></div>
+<div><div style="font-family: Sora, sans-serif; font-size: 32px; line-height: 36px; font-weight: 700">13</div><div style="font-size: 13px; font-weight: 700; color: #CDD1CF">Completed</div></div>
+</div>
+</section>
+
+<!-- donut overview -->
+<section style="background: #2E3231; border: 1px solid #3B403E; border-radius: 28px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<h2 style="margin: 0; font-size: 16px; font-weight: 800">Task overview</h2>
+<span style="font-size: 12px; font-weight: 700; color: #A7ACAA; padding: 6px 12px; border-radius: 999px; background: #353938">This sprint</span>
+</div>
+<div style="display: flex; align-items: center; gap: 20px">
+<div style="position: relative; width: 116px; height: 116px; flex-shrink: 0">
+<svg width="116" height="116" viewBox="0 0 100 100" aria-hidden="true">
+<g transform="rotate(-90 50 50)" fill="none" stroke-width="11" stroke-linecap="butt">
+<circle cx="50" cy="50" r="40" stroke="#6F8F5E" stroke-dasharray="57.3 251.3" stroke-dashoffset="0"></circle>
+<circle cx="50" cy="50" r="40" stroke="#D9A441" stroke-dasharray="21.4 251.3" stroke-dashoffset="-59.8"></circle>
+<circle cx="50" cy="50" r="40" stroke="#D9785F" stroke-dasharray="9.5 251.3" stroke-dashoffset="-83.7"></circle>
+<circle cx="50" cy="50" r="40" stroke="#F5F6F6" stroke-dasharray="153.1 251.3" stroke-dashoffset="-95.7"></circle>
+</g>
+</svg>
+<div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center">
+<span style="font-family: Sora, sans-serif; font-size: 26px; font-weight: 700; line-height: 28px">21</span>
+<span style="font-size: 11px; color: #A7ACAA; font-weight: 600">tasks</span>
+</div>
+</div>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 9px; font-size: 13px; font-weight: 600">
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 10px; height: 10px; border-radius: 3px; background: #6F8F5E"></span><span style="flex: 1">On Track</span><b>5</b></div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 10px; height: 10px; border-radius: 3px; background: #D9A441"></span><span style="flex: 1">At Risk</span><b>2</b></div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 10px; height: 10px; border-radius: 3px; background: #D9785F"></span><span style="flex: 1">Overdue</span><b>1</b></div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 10px; height: 10px; border-radius: 3px; background: #F5F6F6"></span><span style="flex: 1">Completed</span><b>13</b></div>
+</div>
+</div>
+</section>
+
+<!-- needs attention -->
+<section style="display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 4px 0">
+<h2 style="margin: 0; font-size: 18px; font-weight: 800">Needs attention</h2>
+<a href="TaskList.dc.html" style="font-size: 14px; font-weight: 700; padding: 10px 0">See all</a>
+</div>
+<a href="TaskDetails.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 22px; background: #2E3231; border: 1px solid #3B403E; text-decoration: none; color: #F5F6F6">
+<div style="width: 44px; height: 44px; border-radius: 50%; background: #F5F6F6; color: #2B2E2D; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0">BO</div>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 700">Fix login token refresh</span><span style="font-size: 13px; font-weight: 600; color: #E59C88">1 day late</span></div>
+<span style="padding: 6px 12px; border-radius: 999px; background: #D9785F; color: #2A0C04; font-size: 12px; font-weight: 800">Overdue</span>
+</a>
+<a href="TaskDetails.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 22px; background: #2E3231; border: 1px solid #3B403E; text-decoration: none; color: #F5F6F6">
+<div style="width: 44px; height: 44px; border-radius: 50%; background: #6F8F5E; color: #121A0D; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0">AK</div>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 700">Write API error states</span><span style="font-size: 13px; font-weight: 600; color: #E3BF73">Due in 20 hours</span></div>
+<span style="padding: 6px 12px; border-radius: 999px; background: #D9A441; color: #2B1B00; font-size: 12px; font-weight: 800">At Risk</span>
+</a>
+</section>
+</div>
+
+<!-- bottom nav -->
+<nav aria-label="Main" style="position: absolute; left: 16px; right: 16px; bottom: 16px; height: 72px; border-radius: 999px; background: #353938; border: 1px solid #434846; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; padding: 0 9px; box-shadow: 0 12px 30px rgba(0,0,0,.4)">
+<a href="Dashboard.dc.html" aria-current="page" style="height: 52px; padding: 0 20px 0 16px; border-radius: 999px; background: #6F8F5E; color: #121A0D; display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 14px; text-decoration: none">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#121A0D" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path></svg>Home</a>
+<a href="TaskList.dc.html" aria-label="Tasks" style="width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#CDD1CF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="3"></rect><path d="M8 9l2 2 4-4M8 16h8"></path></svg></a>
+<button aria-label="Stats" style="width: 52px; height: 52px; border-radius: 50%; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#CDD1CF" stroke-width="2" stroke-linecap="round"><path d="M5 20V11M12 20V5M19 20v-6"></path></svg></button>
+<a href="Team.dc.html" aria-label="Team" style="width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#CDD1CF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20a6.5 6.5 0 0 1 13 0"></path><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"></path></svg></a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const bars = [];
+    for (let i = 0; i < 21; i++) bars.push({ color: i < 13 ? '#2B2E2D' : '#DADDDC' });
+    return { bars };
+  }
+}
+</script>
+</body>
+</html>

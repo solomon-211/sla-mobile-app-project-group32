@@ -13,39 +13,82 @@ enum SlaStatus {
 /// The SLA business rules. Kept free of Flutter imports so the rules can be
 /// unit tested and explained on their own.
 class Sla {
-  static const defaultAtRiskHours = 48;
+  /// Once this share of the creation-to-deadline window is used, an
+  /// unfinished task is At Risk no matter how much time is left.
+  static const atRiskWindowShare = 0.75;
+
+  /// The statuses shown under "Needs attention".
+  static const needsAttention = {SlaStatus.overdue, SlaStatus.atRisk};
+
+  /// How close to the deadline a task becomes At Risk. Important work gets
+  /// flagged earlier so there is still time to react.
+  static Duration atRiskLeadTime(TaskPriority priority) {
+    switch (priority) {
+      case TaskPriority.high:
+        return const Duration(hours: 72);
+      case TaskPriority.medium:
+        return const Duration(hours: 48);
+      case TaskPriority.low:
+        return const Duration(hours: 24);
+    }
+  }
 
   /// Rules, checked in this order:
   /// 1. Completed - the task status is Done.
   /// 2. Overdue   - not done and the deadline has passed.
-  /// 3. At Risk   - not done and the deadline is less than [atRiskHours] away.
+  /// 3. At Risk   - not done and either
+  ///    a. less than [atRiskLeadTime] is left for its priority, or
+  ///    b. [atRiskWindowShare] (75%) or more of its time window is used.
   /// 4. On Track  - everything else.
-  static SlaStatus statusOf(
-    Task task, {
-    int atRiskHours = defaultAtRiskHours,
-    DateTime? now,
-  }) {
+  static SlaStatus statusOf(Task task, {DateTime? now}) {
     if (task.isDone) return SlaStatus.completed;
 
     final current = now ?? DateTime.now();
     if (!task.dueDate.isAfter(current)) return SlaStatus.overdue;
 
-    final timeLeft = task.dueDate.difference(current);
-    if (timeLeft < Duration(hours: atRiskHours)) return SlaStatus.atRisk;
-
+    if (_closeToDeadline(task, current) ||
+        timeUsed(task, now: current) >= atRiskWindowShare) {
+      return SlaStatus.atRisk;
+    }
     return SlaStatus.onTrack;
+  }
+
+  static bool _closeToDeadline(Task task, DateTime now) {
+    return task.dueDate.difference(now) < atRiskLeadTime(task.priority);
+  }
+
+  /// One sentence explaining why the task has its status.
+  static String explain(Task task, {DateTime? now}) {
+    final current = now ?? DateTime.now();
+    final leadHours = atRiskLeadTime(task.priority).inHours;
+    final priority = task.priority.label;
+    final share = (atRiskWindowShare * 100).round();
+
+    switch (statusOf(task, now: current)) {
+      case SlaStatus.completed:
+        return 'This task is done, so it no longer counts against the SLA.';
+      case SlaStatus.overdue:
+        return 'The deadline has passed and the task is not done.';
+      case SlaStatus.atRisk:
+        return _closeToDeadline(task, current)
+            ? '$priority priority tasks become At Risk inside $leadHours '
+                'hours of the deadline.'
+            : '$share% or more of the time window is used.';
+      case SlaStatus.onTrack:
+        return 'More than $leadHours hours remain and less than $share% of '
+            'the time window is used.';
+    }
   }
 
   /// How many tasks fall under each status. Every status is always present.
   static Map<SlaStatus, int> countByStatus(
     Iterable<Task> tasks, {
-    int atRiskHours = defaultAtRiskHours,
     DateTime? now,
   }) {
     final current = now ?? DateTime.now();
     final counts = {for (final status in SlaStatus.values) status: 0};
     for (final task in tasks) {
-      final status = statusOf(task, atRiskHours: atRiskHours, now: current);
+      final status = statusOf(task, now: current);
       counts[status] = counts[status]! + 1;
     }
     return counts;
@@ -61,12 +104,24 @@ class Sla {
     return (used / window).clamp(0.0, 1.0);
   }
 
+  /// True when a finished task was completed by its deadline.
+  static bool completedOnTime(Task task) {
+    final completedAt = task.completedAt;
+    return completedAt == null || !completedAt.isAfter(task.dueDate);
+  }
+
+  /// Share (0 to 1) of completed tasks that met their deadline, or null when
+  /// nothing has been completed yet.
+  static double? onTimeRate(Iterable<Task> tasks) {
+    final done = tasks.where((task) => task.isDone).toList();
+    if (done.isEmpty) return null;
+    return done.where(completedOnTime).length / done.length;
+  }
+
   /// Short text such as "Due in 20 hours", "1 day late" or "Completed on time".
   static String describe(Task task, {DateTime? now}) {
     if (task.isDone) {
-      final completedAt = task.completedAt;
-      final late = completedAt != null && completedAt.isAfter(task.dueDate);
-      return late ? 'Completed late' : 'Completed on time';
+      return completedOnTime(task) ? 'Completed on time' : 'Completed late';
     }
     final current = now ?? DateTime.now();
     if (!task.dueDate.isAfter(current)) {

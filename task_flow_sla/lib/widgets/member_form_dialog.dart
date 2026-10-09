@@ -3,25 +3,32 @@ import 'package:flutter/material.dart';
 import '../models/team_member.dart';
 import '../utils/validators.dart';
 
+/// What the member dialog returns: the filled-in member (not yet saved) and,
+/// when the dialog asked for one, the password they chose.
+typedef MemberDraft = ({TeamMember member, String? password});
+
 /// Dialog for adding a member or editing an existing one.
 ///
-/// Returns the filled-in member (not yet saved) or null if cancelled.
+/// Returns a [MemberDraft], or null if cancelled.
 /// [takenEmails] are the emails of the *other* members, used to stop
-/// duplicates before the database rejects them.
-Future<TeamMember?> showMemberFormDialog(
+/// duplicates before the database rejects them. Set [askPassword] when the
+/// person filling in the form is creating their own account.
+Future<MemberDraft?> showMemberFormDialog(
   BuildContext context, {
   TeamMember? member,
   required Iterable<String> takenEmails,
   int colorIndex = 0,
   String? title,
+  bool askPassword = false,
 }) {
-  return showDialog<TeamMember>(
+  return showDialog<MemberDraft>(
     context: context,
     builder: (_) => _MemberFormDialog(
       member: member,
       takenEmails: takenEmails.map((email) => email.toLowerCase()).toSet(),
       colorIndex: colorIndex,
       title: title ?? (member == null ? 'Add team member' : 'Edit profile'),
+      askPassword: askPassword,
     ),
   );
 }
@@ -32,12 +39,14 @@ class _MemberFormDialog extends StatefulWidget {
     required this.takenEmails,
     required this.colorIndex,
     required this.title,
+    required this.askPassword,
   });
 
   final TeamMember? member;
   final Set<String> takenEmails;
   final int colorIndex;
   final String title;
+  final bool askPassword;
 
   @override
   State<_MemberFormDialog> createState() => _MemberFormDialogState();
@@ -49,12 +58,15 @@ class _MemberFormDialogState extends State<_MemberFormDialog> {
   late final _roleController = TextEditingController(text: widget.member?.role);
   late final _emailController =
       TextEditingController(text: widget.member?.email);
+  final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
     _nameController.dispose();
     _roleController.dispose();
     _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -74,7 +86,7 @@ class _MemberFormDialogState extends State<_MemberFormDialog> {
     final email = _emailController.text.trim().toLowerCase();
 
     final existing = widget.member;
-    final result = existing == null
+    final member = existing == null
         ? TeamMember(
             name: name,
             role: role,
@@ -82,7 +94,11 @@ class _MemberFormDialogState extends State<_MemberFormDialog> {
             colorIndex: widget.colorIndex,
           )
         : existing.copyWith(name: name, role: role, email: email);
-    Navigator.pop(context, result);
+    final MemberDraft draft = (
+      member: member,
+      password: widget.askPassword ? _passwordController.text : null,
+    );
+    Navigator.pop(context, draft);
   }
 
   @override
@@ -118,10 +134,39 @@ class _MemberFormDialogState extends State<_MemberFormDialog> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 autocorrect: false,
+                textInputAction: widget.askPassword
+                    ? TextInputAction.next
+                    : TextInputAction.done,
                 decoration: const InputDecoration(labelText: 'Email'),
                 validator: _validateEmail,
-                onFieldSubmitted: (_) => _submit(),
+                onFieldSubmitted: widget.askPassword ? null : (_) => _submit(),
               ),
+              if (widget.askPassword) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    helperText:
+                        'At least ${Validators.passwordMinLength} characters',
+                    suffixIcon: IconButton(
+                      tooltip:
+                          _obscurePassword ? 'Show password' : 'Hide password',
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                      onPressed: () {
+                        setState(() => _obscurePassword = !_obscurePassword);
+                      },
+                    ),
+                  ),
+                  validator: Validators.password,
+                  onFieldSubmitted: (_) => _submit(),
+                ),
+              ],
             ],
           ),
         ),

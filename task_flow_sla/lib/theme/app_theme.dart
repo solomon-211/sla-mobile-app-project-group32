@@ -15,6 +15,8 @@ class AppColors {
   static const overdue = Color(0xFFD63B30);
   static const completed = Color(0xFF3C5BA9);
 
+  static const priorityMedium = Color(0xFFB97800);
+
   /// Background / foreground pairs for member avatars.
   static const avatarPalette = <(Color, Color)>[
     (Color(0xFFD7EBE5), Color(0xFF0B5C4D)),
@@ -24,6 +26,61 @@ class AppColors {
     (Color(0xFFD9E8FA), Color(0xFF1D4E89)),
     (Color(0xFFFADADD), Color(0xFF9B2335)),
   ];
+}
+
+/// Every text style used in the app, so sizes and weights stay consistent.
+/// Use `.copyWith(color: ...)` when a style needs a status or brand colour.
+class AppText {
+  /// App name on the sign-in screen.
+  static const display = TextStyle(
+    fontSize: 28,
+    fontWeight: FontWeight.w800,
+    color: AppColors.textDark,
+  );
+
+  /// Main heading of a screen, e.g. the task title, and big numbers.
+  static const heading = TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textDark,
+  );
+
+  /// Section titles such as "Needs attention" or "Members (4)".
+  static const section = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textDark,
+  );
+
+  /// Titles inside cards and list tiles.
+  static const cardTitle = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textDark,
+  );
+
+  static const body = TextStyle(fontSize: 14, color: AppColors.textDark);
+
+  static const bodyStrong = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textDark,
+  );
+
+  static const bodyMuted = TextStyle(fontSize: 14, color: AppColors.textMuted);
+
+  /// Form field labels.
+  static const label = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textDark,
+  );
+
+  /// Small secondary text: dates, roles, counts.
+  static const caption = TextStyle(fontSize: 12, color: AppColors.textMuted);
+
+  /// Text inside status pills and badges.
+  static const pill = TextStyle(fontSize: 11, fontWeight: FontWeight.w700);
 }
 
 class AppTheme {

@@ -46,16 +46,12 @@ class AppDrawer extends StatelessWidget {
               backgroundColor: Colors.white,
               child: Text(
                 currentUser.initials,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
-                ),
+                style: AppText.heading.copyWith(color: AppColors.primary),
               ),
             ),
             accountName: Text(
               currentUser.name,
-              style: const TextStyle(fontWeight: FontWeight.w700),
+              style: AppText.bodyStrong.copyWith(color: Colors.white),
             ),
             accountEmail: Text('${currentUser.role} · ${currentUser.email}'),
           ),
@@ -77,9 +73,9 @@ class AppDrawer extends StatelessWidget {
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: AppColors.overdue),
-            title: const Text(
+            title: Text(
               'Sign out',
-              style: TextStyle(color: AppColors.overdue),
+              style: AppText.body.copyWith(color: AppColors.overdue),
             ),
             onTap: () => _closeThen(context, onSignOut),
           ),

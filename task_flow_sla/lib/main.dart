@@ -10,7 +10,8 @@ Future<void> main() async {
   var signedIn = false;
   try {
     signedIn = await SessionService.restoreSession();
-  } catch (_) {
+  } catch (error, stack) {
+    debugPrint('Could not restore session: $error\n$stack');
     signedIn = false;
   }
   runApp(SprintTrackApp(startSignedIn: signedIn));

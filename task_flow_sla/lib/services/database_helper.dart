@@ -20,6 +20,10 @@ class DatabaseHelper {
   static const _tasks = 'tasks';
   static const _activities = 'activities';
 
+  /// Password given to the demo team and to members added from the Team tab.
+  /// Accounts made with "Create account" choose their own.
+  static const demoPassword = 'sprint123';
+
   Database? _db;
 
   Future<Database> get database async => _db ??= await _open();
@@ -28,10 +32,22 @@ class DatabaseHelper {
     final path = p.join(await getDatabasesPath(), _dbName);
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
+  }
+
+  /// Version 2 added the members.password column. Existing members get the
+  /// demo password so nobody is locked out after the update.
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute(
+        "ALTER TABLE $_members ADD COLUMN password TEXT NOT NULL "
+        "DEFAULT '$demoPassword'",
+      );
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -41,7 +57,8 @@ class DatabaseHelper {
         name TEXT NOT NULL,
         role TEXT NOT NULL,
         email TEXT NOT NULL UNIQUE,
-        color_index INTEGER NOT NULL DEFAULT 0
+        color_index INTEGER NOT NULL DEFAULT 0,
+        password TEXT NOT NULL DEFAULT '$demoPassword'
       )
     ''');
     await db.execute('''
@@ -106,10 +123,27 @@ class DatabaseHelper {
     return rows.map(TeamMember.fromMap).toList();
   }
 
-  Future<TeamMember> insertMember(TeamMember member) async {
+  /// Saves a new member. Without a [password] the member gets [demoPassword].
+  Future<TeamMember> insertMember(TeamMember member, {String? password}) async {
     final db = await database;
-    final id = await db.insert(_members, member.toMap());
+    final id = await db.insert(_members, {
+      ...member.toMap(),
+      'password': ?password,
+    });
     return member.copyWith(id: id);
+  }
+
+  /// True when [password] belongs to the member. This is a local demo check,
+  /// not real authentication, so the password is stored as plain text.
+  Future<bool> checkPassword(int memberId, String password) async {
+    final db = await database;
+    final rows = await db.query(
+      _members,
+      columns: ['id'],
+      where: 'id = ? AND password = ?',
+      whereArgs: [memberId, password],
+    );
+    return rows.isNotEmpty;
   }
 
   Future<void> updateMember(TeamMember member) async {
