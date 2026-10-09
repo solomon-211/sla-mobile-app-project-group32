@@ -6,7 +6,9 @@ import '../services/database_helper.dart';
 import '../services/session_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/sla.dart';
+import '../widgets/app_card.dart';
 import '../widgets/dialogs.dart';
+import '../widgets/icon_circle_button.dart';
 import '../widgets/member_avatar.dart';
 import '../widgets/member_form_dialog.dart';
 import '../widgets/status_widgets.dart';
@@ -57,8 +59,7 @@ class TeamScreen extends StatelessWidget {
     final draft = await showMemberFormDialog(
       context,
       member: member,
-      takenEmails:
-          members.where((m) => m.id != member.id).map((m) => m.email),
+      takenEmails: members.where((m) => m.id != member.id).map((m) => m.email),
     );
     if (draft == null || !context.mounted) return;
     await _save(
@@ -88,6 +89,7 @@ class TeamScreen extends StatelessWidget {
       message: '${member.name} will be removed from the team.',
       confirmLabel: 'Remove',
       destructive: true,
+      icon: Icons.person_remove_outlined,
     );
     if (!confirmed || !context.mounted) return;
     await _save(
@@ -103,36 +105,42 @@ class TeamScreen extends StatelessWidget {
     Future<void> Function() write, {
     required String success,
   }) {
-    return runWithFeedback(
-      context,
-      () async {
-        await write();
-        await onChanged();
-      },
-      success: success,
-    );
+    return runWithFeedback(context, () async {
+      await write();
+      await onChanged();
+    }, success: success);
   }
 
   Future<void> _switchUser(BuildContext context) async {
     final chosen = await showModalBottomSheet<TeamMember>(
       context: context,
       showDragHandle: true,
-      backgroundColor: AppColors.surface,
       builder: (sheetContext) => SafeArea(
         child: ListView(
           shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text('Switch user', style: AppText.section),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+              child: Text('Switch user', style: AppText.sora(22)),
             ),
             for (final member in members)
               ListTile(
-                leading: MemberAvatar(member: member, radius: 18),
-                title: Text(member.name),
-                subtitle: Text(member.role),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                leading: MemberAvatar(member: member, radius: 20),
+                title: Text(member.name, style: AppText.cardTitle()),
+                subtitle: Text(
+                  member.role,
+                  style: AppText.manrope(
+                    13,
+                    weight: FontWeight.w600,
+                    color: AppColors.textMuted,
+                  ),
+                ),
                 trailing: member.id == currentUser.id
-                    ? const Icon(Icons.check, color: AppColors.primary)
+                    ? const Icon(Icons.check_circle, color: AppColors.moss)
                     : null,
                 onTap: () => Navigator.pop(sheetContext, member),
               ),
@@ -159,113 +167,293 @@ class TeamScreen extends StatelessWidget {
     final now = DateTime.now();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Team Members'),
-        leading: IconButton(
-          tooltip: 'Menu',
-          icon: const Icon(Icons.menu),
-          onPressed: onOpenMenu,
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Add member',
-            icon: const Icon(Icons.person_add_alt_1_outlined),
-            onPressed: () => _addMember(context),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildSignedInCard(context),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(2, 20, 2, 10),
-            child: Text('Members (${members.length})', style: AppText.section),
-          ),
-          Card(
-            child: Column(
-              children: [
-                for (final (index, member) in members.indexed) ...[
-                  if (index > 0) const Divider(),
-                  _MemberTile(
-                    member: member,
-                    isCurrentUser: member.id == currentUser.id,
-                    taskCount: _tasksOf(member).length,
-                    counts: Sla.countByStatus(
-                      _tasksOf(member),
-                      now: now,
+      backgroundColor: AppColors.ground,
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          // Bottom padding keeps the last card clear of the floating nav.
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 116),
+          children: [
+            _buildHeader(context),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 16, 4, 16),
+              child: Text('Team Members', style: AppText.screenTitle()),
+            ),
+            _buildSignedInCard(context, now),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 20, 4, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Members (${members.length})',
+                      style: AppText.section(),
                     ),
-                    onEdit: () => _editMember(context, member),
-                    onRemove: () => _removeMember(context, member),
+                  ),
+                  Text(
+                    '${tasks.length} tasks shared',
+                    style: AppText.manrope(
+                      13,
+                      weight: FontWeight.w700,
+                      color: AppColors.textMuted,
+                    ),
                   ),
                 ],
-              ],
+              ),
             ),
+            for (final member in members)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _MemberCard(
+                  member: member,
+                  isCurrentUser: member.id == currentUser.id,
+                  taskCount: _tasksOf(member).length,
+                  counts: Sla.countByStatus(_tasksOf(member), now: now),
+                  onEdit: () => _editMember(context, member),
+                  onRemove: () => _removeMember(context, member),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        IconCircleButton(
+          icon: Icons.notes_rounded,
+          tooltip: 'Open menu',
+          onPressed: onOpenMenu,
+        ),
+        Tooltip(
+          message: 'Add member',
+          child: Material(
+            color: AppColors.ink,
+            shape: const StadiumBorder(),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => _addMember(context),
+              child: SizedBox(
+                height: 46,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 16, 0),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.person_add_alt_1_outlined,
+                        size: 20,
+                        color: AppColors.moss,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Add',
+                        style: AppText.manrope(
+                          14,
+                          weight: FontWeight.w800,
+                          color: AppColors.paper,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Dark card for the signed-in user with their own task stats.
+  Widget _buildSignedInCard(BuildContext context, DateTime now) {
+    final myTasks = _tasksOf(currentUser);
+    final myCounts = Sla.countByStatus(myTasks, now: now);
+    final muted = AppText.manrope(
+      13,
+      weight: FontWeight.w600,
+      color: AppColors.textMutedDark,
+    );
+
+    Widget stat(int value, String label, Color color) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.darkCard,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('$value', style: AppText.sora(22, color: color)),
+              Text(
+                label,
+                style: AppText.manrope(
+                  12,
+                  weight: FontWeight.w600,
+                  color: AppColors.textMutedDark,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return AppCard(
+      color: AppColors.ink,
+      radius: 28,
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: AppColors.moss,
+                child: Text(
+                  currentUser.initials,
+                  style: AppText.sora(20, color: AppColors.onMoss),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      currentUser.name,
+                      style: AppText.sora(20, color: AppColors.paper),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(currentUser.role, style: muted),
+                    Text(
+                      currentUser.email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: muted,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const StatusPill(
+                label: 'Signed in',
+                background: AppColors.moss,
+                foreground: AppColors.onMoss,
+                dot: AppColors.onMoss,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              stat(myTasks.length, 'tasks', AppColors.paper),
+              const SizedBox(width: 8),
+              stat(
+                myCounts[SlaStatus.atRisk]!,
+                'at risk',
+                AppColors.amberOnDark,
+              ),
+              const SizedBox(width: 8),
+              stat(myCounts[SlaStatus.completed]!, 'done', AppColors.moss),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _CardButton(
+                  label: 'Switch user',
+                  icon: Icons.swap_horiz_rounded,
+                  background: AppColors.paper,
+                  foreground: AppColors.ink,
+                  onPressed: () => _switchUser(context),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _CardButton(
+                  label: 'Sign out',
+                  icon: Icons.logout_rounded,
+                  foreground: AppColors.coralText,
+                  borderColor: AppColors.coralText,
+                  onPressed: onSignOut,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildSignedInCard(BuildContext context) {
-    // Same green as the On Track badge, so "positive" looks the same everywhere.
-    final signedInStyle = SlaStyle.of(SlaStatus.onTrack);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(4, 4, 4, 14),
-        child: Column(
-          children: [
-            ListTile(
-              leading: MemberAvatar(
-                member: currentUser,
-                radius: 24,
-                filled: true,
-              ),
-              title: Text(currentUser.name, style: AppText.cardTitle),
-              subtitle: Text(
-                '${currentUser.role}\n${currentUser.email}',
-                style: AppText.caption,
-              ),
-              isThreeLine: true,
-              trailing: StatusPill(
-                label: 'Signed in',
-                background: signedInStyle.background,
-                foreground: signedInStyle.foreground,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => _switchUser(context),
-                      child: const Text('Switch user'),
-                    ),
+/// 50px pill button used inside the dark signed-in card.
+class _CardButton extends StatelessWidget {
+  const _CardButton({
+    required this.label,
+    required this.icon,
+    required this.foreground,
+    required this.onPressed,
+    this.background = Colors.transparent,
+    this.borderColor,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color foreground;
+  final Color background;
+  final Color? borderColor;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: background,
+      shape: StadiumBorder(
+        side: borderColor == null
+            ? BorderSide.none
+            : BorderSide(color: borderColor!, width: 1.5),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onPressed,
+        child: SizedBox(
+          height: 50,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: foreground),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.manrope(
+                    14,
+                    weight: FontWeight.w800,
+                    color: foreground,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.overdue,
-                        side: const BorderSide(color: AppColors.overdue),
-                      ),
-                      onPressed: onSignOut,
-                      child: const Text('Sign out'),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _MemberTile extends StatelessWidget {
-  const _MemberTile({
+class _MemberCard extends StatelessWidget {
+  const _MemberCard({
     required this.member,
     required this.isCurrentUser,
     required this.taskCount,
@@ -310,42 +498,68 @@ class _MemberTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final badges = _buildBadges();
 
-    return ListTile(
-      contentPadding: const EdgeInsets.fromLTRB(14, 6, 2, 6),
-      leading: MemberAvatar(member: member, radius: 22),
-      title: Text.rich(
-        TextSpan(
-          text: member.name,
-          children: [
-            if (isCurrentUser)
-              TextSpan(
-                text: '  (You)',
-                style: AppText.caption.copyWith(color: AppColors.primary),
-              ),
-          ],
-        ),
-        style: AppText.cardTitle,
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return AppCard(
+      padding: const EdgeInsets.fromLTRB(14, 14, 6, 14),
+      child: Row(
         children: [
-          Text(
-            '${member.role} · $taskCount ${taskCount == 1 ? 'task' : 'tasks'}',
-            style: AppText.caption,
+          MemberAvatar(member: member, radius: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(member.name, style: AppText.cardTitle()),
+                    if (isCurrentUser)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.ink,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          'You',
+                          style: AppText.manrope(
+                            11,
+                            weight: FontWeight.w800,
+                            color: AppColors.moss,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${member.role} · $taskCount '
+                  '${taskCount == 1 ? 'task' : 'tasks'}',
+                  style: AppText.manrope(
+                    13,
+                    weight: FontWeight.w600,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                if (badges.isNotEmpty) ...[
+                  const SizedBox(height: 7),
+                  Wrap(spacing: 6, runSpacing: 6, children: badges),
+                ],
+              ],
+            ),
           ),
-          if (badges.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Wrap(spacing: 6, runSpacing: 6, children: badges),
-          ],
-        ],
-      ),
-      trailing: PopupMenuButton<String>(
-        tooltip: 'Member actions',
-        icon: const Icon(Icons.more_vert, color: AppColors.textMuted),
-        onSelected: (value) => value == 'edit' ? onEdit() : onRemove(),
-        itemBuilder: (_) => const [
-          PopupMenuItem(value: 'edit', child: Text('Edit')),
-          PopupMenuItem(value: 'remove', child: Text('Remove')),
+          PopupMenuButton<String>(
+            tooltip: 'Member options',
+            icon: const Icon(Icons.more_vert_rounded, color: AppColors.ink),
+            onSelected: (value) => value == 'edit' ? onEdit() : onRemove(),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'edit', child: Text('Edit')),
+              PopupMenuItem(value: 'remove', child: Text('Remove')),
+            ],
+          ),
         ],
       ),
     );

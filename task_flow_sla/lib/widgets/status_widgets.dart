@@ -6,42 +6,66 @@ import '../utils/sla.dart';
 
 /// Colours and icon for one SLA status, shared by badges, cards and charts.
 class SlaStyle {
+  /// Solid colour for charts, tick bars and icon circles.
   final Color color;
+
+  /// Badge background and text.
   final Color background;
   final Color foreground;
+
+  /// Text colour for this status on dark backgrounds.
+  final Color onDark;
+
+  /// Small dot on filter chips and section headers.
+  final Color dot;
   final IconData icon;
 
-  const SlaStyle._(this.color, this.background, this.foreground, this.icon);
+  const SlaStyle._({
+    required this.color,
+    required this.background,
+    required this.foreground,
+    required this.onDark,
+    required this.dot,
+    required this.icon,
+  });
 
   static SlaStyle of(SlaStatus status) {
     switch (status) {
       case SlaStatus.onTrack:
         return const SlaStyle._(
-          AppColors.onTrack,
-          Color(0xFFDDF1E6),
-          Color(0xFF14653F),
-          Icons.check_circle_outline,
+          color: AppColors.moss,
+          background: AppColors.moss,
+          foreground: AppColors.onMoss,
+          onDark: AppColors.mossLight,
+          dot: AppColors.mossDeep,
+          icon: Icons.check_rounded,
         );
       case SlaStatus.atRisk:
         return const SlaStyle._(
-          AppColors.atRisk,
-          Color(0xFFFCEBD0),
-          Color(0xFF8A5200),
-          Icons.warning_amber_rounded,
+          color: AppColors.amber,
+          background: AppColors.amberBg,
+          foreground: AppColors.amberText,
+          onDark: AppColors.amberOnDark,
+          dot: AppColors.amber,
+          icon: Icons.warning_amber_rounded,
         );
       case SlaStatus.overdue:
         return const SlaStyle._(
-          AppColors.overdue,
-          Color(0xFFFBDCD9),
-          Color(0xFFA3221A),
-          Icons.schedule,
+          color: AppColors.coral,
+          background: AppColors.coral,
+          foreground: AppColors.onCoral,
+          onDark: AppColors.coralText,
+          dot: AppColors.coral,
+          icon: Icons.schedule_rounded,
         );
       case SlaStatus.completed:
         return const SlaStyle._(
-          AppColors.completed,
-          Color(0xFFDEE5F6),
-          Color(0xFF2B4488),
-          Icons.done_all,
+          color: AppColors.paper,
+          background: AppColors.doneBg,
+          foreground: AppColors.doneText,
+          onDark: AppColors.textSoftDark,
+          dot: AppColors.doneDot,
+          icon: Icons.done_all_rounded,
         );
     }
   }
@@ -50,36 +74,54 @@ class SlaStyle {
 Color priorityColor(TaskPriority priority) {
   switch (priority) {
     case TaskPriority.low:
-      return AppColors.onTrack;
+      return AppColors.mossDeep;
     case TaskPriority.medium:
-      return AppColors.priorityMedium;
+      return AppColors.amber;
     case TaskPriority.high:
-      return AppColors.overdue;
+      return AppColors.coral;
   }
 }
 
-/// Small rounded label, e.g. "3 done".
+/// Small fully rounded label, e.g. "3 done".
 class StatusPill extends StatelessWidget {
   const StatusPill({
     super.key,
     required this.label,
     required this.background,
     required this.foreground,
+    this.dot,
   });
 
   final String label;
   final Color background;
   final Color foreground;
 
+  /// Optional leading dot, e.g. on the "Signed in" pill.
+  final Color? dot;
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(label, style: AppText.pill.copyWith(color: foreground)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (dot != null) ...[
+            CircleAvatar(radius: 3, backgroundColor: dot),
+            const SizedBox(width: 5),
+          ],
+          Text(
+            label,
+            maxLines: 1,
+            softWrap: false,
+            style: AppText.pill(color: foreground),
+          ),
+        ],
+      ),
     );
   }
 }

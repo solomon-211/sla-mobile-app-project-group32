@@ -5,8 +5,8 @@ import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Skip the sign-in screen when a remembered user is saved on the device.
-  // If the saved session cannot be read, fall back to the sign-in screen.
+  // Skip the welcome screens when a remembered user is saved on the device.
+  // If the saved session cannot be read, start on the Landing screen.
   var signedIn = false;
   try {
     signedIn = await SessionService.restoreSession();
@@ -28,7 +28,7 @@ class SprintTrackApp extends StatelessWidget {
       title: 'SprintTrack',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      initialRoute: startSignedIn ? AppRoutes.home : AppRoutes.signIn,
+      initialRoute: startSignedIn ? AppRoutes.home : AppRoutes.landing,
       onGenerateRoute: AppRoutes.onGenerateRoute,
     );
   }

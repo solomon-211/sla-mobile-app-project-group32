@@ -9,32 +9,40 @@ class MemberAvatar extends StatelessWidget {
   const MemberAvatar({
     super.key,
     required this.member,
-    this.radius = 20,
+    this.radius = 22,
     this.filled = false,
+    this.onDark = false,
   });
 
   final TeamMember? member;
   final double radius;
 
-  /// Solid brand colour, used for the signed-in user.
+  /// Moss accent, used for the signed-in user.
   final bool filled;
+
+  /// Swaps the dark ink avatar for a light one so it stays visible on dark
+  /// cards.
+  final bool onDark;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppColors.avatarPalette;
-    final (background, foreground) = filled
-        ? (AppColors.primary, Colors.white)
+    var (background, foreground) = filled
+        ? (AppColors.moss, AppColors.onMoss)
         : palette[(member?.colorIndex ?? 0) % palette.length];
+    if (onDark && background == AppColors.ink) {
+      (background, foreground) = (AppColors.paper, AppColors.ink);
+    }
 
     return CircleAvatar(
       radius: radius,
       backgroundColor: background,
       child: Text(
         member?.initials ?? '?',
-        style: TextStyle(
+        style: AppText.manrope(
+          radius * 0.6,
+          weight: FontWeight.w800,
           color: foreground,
-          fontSize: radius * 0.7,
-          fontWeight: FontWeight.w700,
         ),
       ),
     );

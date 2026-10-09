@@ -10,8 +10,11 @@ import '../services/database_helper.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 import '../utils/sla.dart';
+import '../widgets/app_card.dart';
 import '../widgets/dialogs.dart';
+import '../widgets/icon_circle_button.dart';
 import '../widgets/member_avatar.dart';
+import '../widgets/pill_buttons.dart';
 import '../widgets/status_widgets.dart';
 
 /// Task Details: everything about one task, with status updates, edit and
@@ -123,9 +126,10 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     if (task == null) return;
     final confirmed = await showConfirmDialog(
       context,
-      title: 'Delete task?',
-      message: '"${task.title}" and its history will be removed. '
-          'This cannot be undone.',
+      title: 'Delete this task?',
+      message:
+          '"${task.title}" and its history will be removed. '
+          'This can\'t be undone.',
       confirmLabel: 'Delete',
       destructive: true,
     );
@@ -146,25 +150,59 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     final task = _task;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: const Text('Task Details'),
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.textDark,
-        shape: const Border(bottom: BorderSide(color: AppColors.border)),
-        actions: [
-          if (task != null)
+      // The action bar floats over the content.
+      extendBody: true,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _buildHeader(task),
+            Expanded(child: _buildBody(task)),
+          ],
+        ),
+      ),
+      bottomNavigationBar: task == null ? null : _buildActions(task),
+    );
+  }
+
+  Widget _buildHeader(Task? task) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      child: Row(
+        children: [
+          IconCircleButton(
+            icon: Icons.arrow_back_ios_new_rounded,
+            tooltip: 'Back to tasks',
+            onPressed: () => Navigator.maybePop(context),
+          ),
+          Expanded(
+            child: Text(
+              'Task Details',
+              textAlign: TextAlign.center,
+              style: AppText.cardTitle(),
+            ),
+          ),
+          // Keeps the title centred while the task is loading.
+          if (task == null)
+            const SizedBox(width: 46)
+          else
             PopupMenuButton<String>(
+              tooltip: 'More options',
               onSelected: (value) => value == 'edit' ? _edit() : _delete(),
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'edit', child: Text('Edit task')),
                 PopupMenuItem(value: 'delete', child: Text('Delete task')),
               ],
+              child: const IgnorePointer(
+                child: IconCircleButton(
+                  icon: Icons.more_vert_rounded,
+                  tooltip: 'More options',
+                  onPressed: null,
+                ),
+              ),
             ),
         ],
       ),
-      body: _buildBody(task),
-      bottomNavigationBar: task == null ? null : _buildActions(task),
     );
   }
 
@@ -194,162 +232,246 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     final status = Sla.statusOf(task, now: now);
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      // Bottom padding keeps the last card clear of the action bar.
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 116),
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        _buildTitleBlock(task, status),
+        const SizedBox(height: 14),
+        _SlaCard(task: task, status: status, now: now),
+        const SizedBox(height: 14),
+        _buildInfoTiles(task),
+        const SizedBox(height: 14),
+        _buildActivity(),
+      ],
+    );
+  }
+
+  Widget _buildTitleBlock(Task task, SlaStatus status) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              StatusPill(
+                label: task.category,
+                background: AppColors.ink,
+                foreground: AppColors.moss,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                task.code,
+                style: AppText.manrope(
+                  13,
+                  weight: FontWeight.w700,
+                  color: AppColors.textMuted,
+                ),
+              ),
+              const Spacer(),
+              SlaBadge(status: status),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            task.title,
+            style: AppText.sora(30, height: 36, letterSpacing: -1),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            task.description.isEmpty ? 'No description.' : task.description,
+            style: AppText.manrope(15, color: AppColors.textBody, height: 23),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 2x2 tiles: assignee, due date, priority and status.
+  Widget _buildInfoTiles(Task task) {
+    Widget row(Widget left, Widget right) {
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(child: Text(task.title, style: AppText.heading)),
+            Expanded(child: left),
             const SizedBox(width: 12),
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: SlaBadge(status: status),
-            ),
+            Expanded(child: right),
           ],
         ),
-        const SizedBox(height: 4),
-        Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: task.category,
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
+      );
+    }
+
+    return Column(
+      children: [
+        row(
+          _InfoTile(
+            icon: Icons.person_outline_rounded,
+            label: 'Assigned to',
+            child: Row(
+              children: [
+                MemberAvatar(member: _assignee, radius: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _assignee?.name ?? 'Unassigned',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.cardTitle(),
+                  ),
                 ),
-              ),
-              TextSpan(text: ' · ${task.code}'),
-            ],
+              ],
+            ),
           ),
-          style: AppText.caption.copyWith(fontSize: 13),
+          _InfoTile(
+            icon: Icons.calendar_today_outlined,
+            label: 'Due date',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(formatDate(task.dueDate), style: AppText.sora(18)),
+                Text(
+                  formatTime(task.dueDate),
+                  style: AppText.manrope(
+                    13,
+                    weight: FontWeight.w600,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
         const SizedBox(height: 12),
-        Text(
-          task.description.isEmpty ? 'No description.' : task.description,
-          style: AppText.body.copyWith(height: 1.4),
-        ),
-        const SizedBox(height: 16),
-        const Divider(),
-        _DetailRow(
-          icon: Icons.person_outline,
-          label: 'Assigned to',
-          child: Row(
-            children: [
-              MemberAvatar(member: _assignee, radius: 13),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  _assignee?.name ?? 'Unassigned',
-                  style: AppText.bodyStrong,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const Divider(),
-        _DetailRow(
-          icon: Icons.calendar_today_outlined,
-          label: 'Due date',
-          child: Text(formatDateTime(task.dueDate), style: AppText.bodyStrong),
-        ),
-        const Divider(),
-        _DetailRow(
-          icon: Icons.flag_outlined,
-          label: 'Priority',
-          child: Text(
-            task.priority.label,
-            style: AppText.bodyStrong.copyWith(
-              fontWeight: FontWeight.w700,
-              color: priorityColor(task.priority),
-            ),
-          ),
-        ),
-        const Divider(),
-        _DetailRow(
-          icon: Icons.notes,
-          label: 'Status',
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.border),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: DropdownButton<TaskStatus>(
-              value: task.status,
-              isExpanded: true,
-              underline: const SizedBox.shrink(),
-              items: [
-                for (final option in TaskStatus.values)
-                  DropdownMenuItem(value: option, child: Text(option.label)),
-              ],
-              // A null onChanged disables the dropdown while saving.
-              onChanged: _updating
-                  ? null
-                  : (value) {
-                      if (value != null) _changeStatus(value);
-                    },
-            ),
-          ),
-        ),
-        const Divider(),
-        const SizedBox(height: 16),
-        _SlaCard(task: task, status: status, now: now),
-        const SizedBox(height: 20),
-        const Text('Activity', style: AppText.cardTitle),
-        const SizedBox(height: 8),
-        for (final (index, activity) in _activities.indexed)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 5),
+        row(
+          _InfoTile(
+            icon: Icons.flag_outlined,
+            label: 'Priority',
             child: Row(
               children: [
                 CircleAvatar(
-                  radius: 4,
-                  // The newest entry is highlighted.
-                  backgroundColor:
-                      index == 0 ? AppColors.primary : AppColors.border,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    activity.message,
-                    style: AppText.body.copyWith(fontSize: 13),
-                  ),
+                  radius: 6,
+                  backgroundColor: priorityColor(task.priority),
                 ),
                 const SizedBox(width: 8),
-                Text(formatShortDate(activity.createdAt), style: AppText.caption),
+                Text(task.priority.label, style: AppText.sora(18)),
               ],
             ),
           ),
+          _InfoTile(
+            icon: Icons.notes_rounded,
+            label: 'Status',
+            child: Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceMuted,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: DropdownButton<TaskStatus>(
+                value: task.status,
+                isExpanded: true,
+                underline: const SizedBox.shrink(),
+                borderRadius: BorderRadius.circular(20),
+                style: AppText.manrope(14, weight: FontWeight.w800),
+                items: [
+                  for (final option in TaskStatus.values)
+                    DropdownMenuItem(value: option, child: Text(option.label)),
+                ],
+                // A null onChanged disables the dropdown while saving.
+                onChanged: _updating
+                    ? null
+                    : (value) {
+                        if (value != null) _changeStatus(value);
+                      },
+              ),
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildActivity() {
+    return AppCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Activity', style: AppText.cardTitle()),
+          for (final (index, activity) in _activities.indexed)
+            Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5),
+                    // The newest entry is highlighted with a moss ring.
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: index == 0 ? AppColors.ink : AppColors.dotMuted,
+                        shape: BoxShape.circle,
+                        border: index == 0
+                            ? Border.all(
+                                color: AppColors.moss,
+                                width: 4,
+                                strokeAlign: BorderSide.strokeAlignOutside,
+                              )
+                            : null,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      activity.message,
+                      style: AppText.manrope(14, height: 20),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    formatShortDate(activity.createdAt),
+                    style: AppText.caption(),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 
   Widget _buildActions(Task task) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        // The main action gets 1.35x the width of Edit, as in the design.
         child: Row(
           children: [
             Expanded(
-              child: OutlinedButton(
+              flex: 100,
+              child: OutlinePillButton(
+                label: 'Edit Task',
+                icon: Icons.edit_outlined,
+                height: 64,
+                background: AppColors.surface,
                 onPressed: _updating ? null : _edit,
-                child: const Text('Edit Task'),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
-              child: ElevatedButton(
-                onPressed: _updating
-                    ? null
-                    : () => _changeStatus(
-                          task.isDone ? TaskStatus.inProgress : TaskStatus.done,
-                        ),
-                child: _updating
-                    ? const SizedBox.square(
-                        dimension: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(task.isDone ? 'Reopen Task' : 'Mark as Done'),
+              flex: 135,
+              child: PrimaryPillButton(
+                label: task.isDone ? 'Reopen task' : 'Mark as Done',
+                icon: task.isDone ? Icons.replay_rounded : Icons.check_rounded,
+                nudge: false,
+                loading: _updating,
+                onPressed: () => _changeStatus(
+                  task.isDone ? TaskStatus.inProgress : TaskStatus.done,
+                ),
               ),
             ),
           ],
@@ -359,10 +481,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
   }
 }
 
-/// One "label: value" line. The label takes 2/5 of the width and the value
-/// 3/5, so both grow with the screen and with large system font sizes.
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({
+/// White tile with a small icon + label on top and the value below.
+class _InfoTile extends StatelessWidget {
+  const _InfoTile({
     required this.icon,
     required this.label,
     required this.child,
@@ -374,86 +495,144 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 52),
-      child: Row(
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: AppColors.textMuted),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 2,
-            child: Text(label, style: AppText.bodyMuted),
+          Row(
+            children: [
+              Icon(icon, size: 15, color: AppColors.textMuted),
+              const SizedBox(width: 6),
+              Text(label, style: AppText.caption()),
+            ],
           ),
-          Expanded(flex: 3, child: child),
+          const SizedBox(height: 12),
+          child,
         ],
       ),
     );
   }
 }
 
-/// Explains the task's SLA status and how much of its time window is used.
+/// Dark card explaining the SLA status, with a tick scale showing how much
+/// of the time between creation and deadline is used.
 class _SlaCard extends StatelessWidget {
-  const _SlaCard({
-    required this.task,
-    required this.status,
-    required this.now,
-  });
+  const _SlaCard({required this.task, required this.status, required this.now});
 
   final Task task;
   final SlaStatus status;
   final DateTime now;
 
+  static const _ticks = 36;
+
   @override
   Widget build(BuildContext context) {
     final style = SlaStyle.of(status);
     final used = Sla.timeUsed(task, now: now);
+    final percent = (used * 100).round();
+    final filled = (used * _ticks).round();
+    // Completed tasks show in moss; the others use their status colour.
+    final accent = status == SlaStatus.completed ? AppColors.moss : style.color;
+    final titleColor = status == SlaStatus.completed
+        ? AppColors.moss
+        : style.onDark;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: style.background.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: style.background),
-      ),
+    return AppCard(
+      color: AppColors.ink,
+      radius: 28,
+      padding: const EdgeInsets.all(20),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'SLA Status',
-            style: AppText.caption.copyWith(
-              fontWeight: FontWeight.w700,
-              color: style.foreground,
-            ),
-          ),
-          const SizedBox(height: 8),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(style.icon, size: 20, color: style.foreground),
-              const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  '${status.label} · ${Sla.describe(task, now: now)}',
-                  style: AppText.cardTitle.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: style.foreground,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'SLA STATUS',
+                      style: AppText.manrope(
+                        12,
+                        weight: FontWeight.w800,
+                        color: AppColors.textMutedDark,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${status.label} · ${Sla.describe(task, now: now)}',
+                      style: AppText.sora(20, color: titleColor),
+                    ),
+                  ],
                 ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text.rich(
+                    TextSpan(
+                      text: '$percent',
+                      children: [
+                        TextSpan(
+                          text: '%',
+                          style: AppText.sora(18, color: AppColors.paper),
+                        ),
+                      ],
+                    ),
+                    style: AppText.sora(
+                      34,
+                      color: AppColors.paper,
+                      height: 36,
+                      letterSpacing: -1,
+                    ),
+                  ),
+                  Text(
+                    'time used',
+                    style: AppText.manrope(
+                      12,
+                      weight: FontWeight.w600,
+                      color: AppColors.textMutedDark,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          LinearProgressIndicator(
-            value: used,
-            minHeight: 7,
-            borderRadius: BorderRadius.circular(7),
-            color: style.color,
-            backgroundColor: style.background,
+          const SizedBox(height: 14),
+          Semantics(
+            label: '$percent% of the time window used',
+            excludeSemantics: true,
+            child: SizedBox(
+              height: 30,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (var i = 0; i < _ticks; i++)
+                    Container(
+                      width: 3,
+                      // Every fifth tick is taller, like a ruler.
+                      height: i % 5 == 0 ? 30 : 18,
+                      decoration: BoxDecoration(
+                        color: i < filled ? accent : AppColors.darkTick,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Text(
-            '${(used * 100).round()}% of the time window used. '
-            '${Sla.explain(task, now: now)}',
-            style: AppText.caption.copyWith(color: style.foreground),
+            '$percent% of the time window used. ${Sla.explain(task, now: now)}',
+            style: AppText.manrope(
+              13,
+              color: AppColors.textSoftDark,
+              height: 19,
+            ),
           ),
         ],
       ),

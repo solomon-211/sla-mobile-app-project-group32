@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/team_member.dart';
+import '../theme/app_theme.dart';
 import '../utils/validators.dart';
 
 /// What the member dialog returns: the filled-in member (not yet saved) and,
@@ -56,8 +57,9 @@ class _MemberFormDialogState extends State<_MemberFormDialog> {
   final _formKey = GlobalKey<FormState>();
   late final _nameController = TextEditingController(text: widget.member?.name);
   late final _roleController = TextEditingController(text: widget.member?.role);
-  late final _emailController =
-      TextEditingController(text: widget.member?.email);
+  late final _emailController = TextEditingController(
+    text: widget.member?.email,
+  );
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
@@ -103,6 +105,19 @@ class _MemberFormDialogState extends State<_MemberFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // Grey fields so they stand out on the white dialog.
+    final theme = Theme.of(context);
+    return Theme(
+      data: theme.copyWith(
+        inputDecorationTheme: theme.inputDecorationTheme.copyWith(
+          fillColor: AppColors.surfaceMuted,
+        ),
+      ),
+      child: _buildDialog(),
+    );
+  }
+
+  Widget _buildDialog() {
     return AlertDialog(
       title: Text(widget.title),
       content: Form(
@@ -151,8 +166,9 @@ class _MemberFormDialogState extends State<_MemberFormDialog> {
                     helperText:
                         'At least ${Validators.passwordMinLength} characters',
                     suffixIcon: IconButton(
-                      tooltip:
-                          _obscurePassword ? 'Show password' : 'Hide password',
+                      tooltip: _obscurePassword
+                          ? 'Show password'
+                          : 'Hide password',
                       icon: Icon(
                         _obscurePassword
                             ? Icons.visibility_outlined

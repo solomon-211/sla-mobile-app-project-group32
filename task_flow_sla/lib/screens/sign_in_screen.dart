@@ -7,14 +7,16 @@ import '../services/session_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/validators.dart';
 import '../widgets/dialogs.dart';
-import '../widgets/member_avatar.dart';
-import '../widgets/member_form_dialog.dart';
+import '../widgets/entrance.dart';
+import '../widgets/icon_circle_button.dart';
+import '../widgets/password_toggle.dart';
+import '../widgets/pill_buttons.dart';
 
-/// Sign In / User Selection.
+/// Sign In.
 ///
-/// There is no real authentication service. Signing in with email checks the
-/// email and password against the members stored in the local database.
-/// Tapping a team member below the form is the quick "user selection" path.
+/// There is no real authentication service. Signing in checks the email and
+/// password against the members stored in the local database. Switching
+/// between members later is done from the Team tab ("Switch user").
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
 
@@ -23,6 +25,10 @@ class SignInScreen extends StatefulWidget {
 }
 
 class _SignInScreenState extends State<SignInScreen> {
+  /// The "Remember me" checkbox was removed from the design, so the session
+  /// is always remembered. SessionService still supports both choices.
+  static const _rememberMe = true;
+
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -30,7 +36,6 @@ class _SignInScreenState extends State<SignInScreen> {
   List<TeamMember> _members = [];
   bool _loadingMembers = true;
   bool _obscurePassword = true;
-  bool _rememberMe = true;
   bool _submitting = false;
 
   /// Shown under the email field when no member matches the typed email.
@@ -76,8 +81,9 @@ class _SignInScreenState extends State<SignInScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final email = _emailController.text.trim().toLowerCase();
-    final member =
-        _members.where((m) => m.email.toLowerCase() == email).firstOrNull;
+    final member = _members
+        .where((m) => m.email.toLowerCase() == email)
+        .firstOrNull;
     if (member == null) {
       setState(() => _emailError = 'No team member uses this email');
       return;
@@ -86,8 +92,10 @@ class _SignInScreenState extends State<SignInScreen> {
     setState(() => _submitting = true);
     final bool correct;
     try {
-      correct = await DatabaseHelper.instance
-          .checkPassword(member.id!, _passwordController.text);
+      correct = await DatabaseHelper.instance.checkPassword(
+        member.id!,
+        _passwordController.text,
+      );
     } catch (error, stack) {
       logError('Could not check password', error, stack);
       if (!mounted) return;
@@ -109,8 +117,7 @@ class _SignInScreenState extends State<SignInScreen> {
     try {
       await SessionService.signIn(member.id!, remember: _rememberMe);
       if (!mounted) return;
-      // Replace this screen so Back does not return to sign in.
-      Navigator.pushReplacementNamed(context, AppRoutes.home);
+      AppRoutes.goHome(context);
     } catch (error, stack) {
       logError('Could not save session', error, stack);
       if (!mounted) return;
@@ -119,78 +126,31 @@ class _SignInScreenState extends State<SignInScreen> {
     }
   }
 
-  Future<void> _createAccount() async {
-    final draft = await showMemberFormDialog(
-      context,
-      title: 'Create account',
-      takenEmails: _members.map((m) => m.email),
-      colorIndex: _members.length,
-      askPassword: true,
-    );
-    if (draft == null) return;
-    try {
-      final member = await DatabaseHelper.instance
-          .insertMember(draft.member, password: draft.password);
-      await _completeSignIn(member);
-    } catch (error, stack) {
-      logError('Could not create account', error, stack);
-      if (!mounted) return;
-      showMessage(context, 'Could not create the account. Please try again.');
-    }
-  }
-
-  void _showForgotPassword() {
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Forgot password?'),
-        content: const Text(
-          'SprintTrack keeps everything on this device and has no password '
-          'reset. The demo team and members added from the Team tab use the '
-          'password "${DatabaseHelper.demoPassword}". You can also tap a team '
-          'member below the form to sign in as them.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Got it'),
-          ),
-        ],
-      ),
-    );
+  void _openRegister() {
+    Navigator.pushReplacementNamed(context, AppRoutes.register);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+        child: LayoutBuilder(
+          // Fills the screen so the "Create account" line sits at the bottom,
+          // but still scrolls when the keyboard is open.
+          builder: (context, constraints) => SingleChildScrollView(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const _Logo(),
-                  const SizedBox(height: 28),
-                  _buildForm(),
-                  const SizedBox(height: 24),
-                  _buildDemoMembers(),
-                  const SizedBox(height: 24),
-                  // Wrap instead of Row so large system fonts move the button
-                  // onto its own line rather than overflowing.
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      const Text('New to the team?', style: AppText.bodyMuted),
-                      TextButton(
-                        onPressed: _submitting ? null : _createAccount,
-                        child: const Text('Create account'),
-                      ),
-                    ],
+                  _buildTop(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+                    child: SlideUpIn(
+                      delay: const Duration(milliseconds: 1000),
+                      child: _buildCreateAccountLine(),
+                    ),
                   ),
                 ],
               ),
@@ -201,163 +161,140 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 
+  Widget _buildTop() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SlideUpIn(
+              child: IconCircleButton(
+                icon: Icons.arrow_back_ios_new_rounded,
+                tooltip: 'Back',
+                onPressed: () => AppRoutes.backToLanding(context),
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 38, 24, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              RiseIn(
+                delay: const Duration(milliseconds: 100),
+                child: Text('Welcome back', style: AppText.screenTitle()),
+              ),
+              const SizedBox(height: 8),
+              RiseIn(
+                delay: const Duration(milliseconds: 200),
+                child: Text(
+                  "Sign in to track your team's tasks.",
+                  style: AppText.bodyMuted(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 34, 20, 0),
+          child: _buildForm(),
+        ),
+      ],
+    );
+  }
+
   Widget _buildForm() {
     return Form(
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextFormField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            autocorrect: false,
-            decoration: InputDecoration(
-              hintText: 'Email',
-              prefixIcon: const Icon(Icons.mail_outline),
-              errorText: _emailError,
+          SlideUpIn(
+            delay: const Duration(milliseconds: 300),
+            child: TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              autocorrect: false,
+              style: AppText.manrope(15, weight: FontWeight.w600),
+              decoration: InputDecoration(
+                hintText: 'Email',
+                prefixIcon: const Icon(Icons.mail_outline_rounded, size: 20),
+                errorText: _emailError,
+              ),
+              validator: Validators.email,
+              onChanged: (_) {
+                if (_emailError != null) setState(() => _emailError = null);
+              },
             ),
-            validator: Validators.email,
-            onChanged: (_) {
-              if (_emailError != null) setState(() => _emailError = null);
-            },
           ),
           const SizedBox(height: 12),
-          TextFormField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
-            textInputAction: TextInputAction.done,
-            decoration: InputDecoration(
-              hintText: 'Password',
-              prefixIcon: const Icon(Icons.lock_outline),
-              errorText: _passwordError,
-              suffixIcon: IconButton(
-                tooltip: _obscurePassword ? 'Show password' : 'Hide password',
-                icon: Icon(
-                  _obscurePassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
+          SlideUpIn(
+            delay: const Duration(milliseconds: 380),
+            child: TextFormField(
+              controller: _passwordController,
+              obscureText: _obscurePassword,
+              textInputAction: TextInputAction.done,
+              style: AppText.manrope(15, weight: FontWeight.w600),
+              decoration: InputDecoration(
+                hintText: 'Password',
+                prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                errorText: _passwordError,
+                suffixIcon: PasswordToggle(
+                  obscured: _obscurePassword,
+                  onPressed: () {
+                    setState(() => _obscurePassword = !_obscurePassword);
+                  },
                 ),
-                onPressed: () {
-                  setState(() => _obscurePassword = !_obscurePassword);
-                },
               ),
+              validator: Validators.password,
+              onChanged: (_) {
+                if (_passwordError != null) {
+                  setState(() => _passwordError = null);
+                }
+              },
+              onFieldSubmitted: (_) => _signInWithEmail(),
             ),
-            validator: Validators.password,
-            onChanged: (_) {
-              if (_passwordError != null) {
-                setState(() => _passwordError = null);
-              }
-            },
-            onFieldSubmitted: (_) => _signInWithEmail(),
           ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Checkbox(
-                value: _rememberMe,
-                onChanged: (value) {
-                  setState(() => _rememberMe = value ?? false);
-                },
-              ),
-              const Expanded(child: Text('Remember me', style: AppText.body)),
-              TextButton(
-                onPressed: _showForgotPassword,
-                child: const Text('Forgot password?'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ElevatedButton(
-            onPressed: _submitting ? null : _signInWithEmail,
-            child: _submitting
-                ? const SizedBox.square(
-                    dimension: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Sign In'),
+          const SizedBox(height: 20),
+          SlideUpIn(
+            delay: const Duration(milliseconds: 460),
+            child: PrimaryPillButton(
+              label: 'Sign In',
+              loading: _submitting,
+              // Members must be loaded before an email can be matched.
+              onPressed: _loadingMembers ? null : _signInWithEmail,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDemoMembers() {
-    return Column(
+  Widget _buildCreateAccountLine() {
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        const Row(
-          children: [
-            Expanded(child: Divider()),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Text('or sign in as a team member', style: AppText.caption),
-            ),
-            Expanded(child: Divider()),
-          ],
-        ),
-        const SizedBox(height: 16),
-        if (_loadingMembers)
-          const CircularProgressIndicator()
-        else
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 16,
-            runSpacing: 12,
-            children: [
-              for (final member in _members)
-                InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: _submitting ? null : () => _completeSignIn(member),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        MemberAvatar(member: member, radius: 24),
-                        const SizedBox(height: 4),
-                        Text(
-                          member.firstName,
-                          style: AppText.caption
-                              .copyWith(color: AppColors.textDark),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-      ],
-    );
-  }
-}
-
-class _Logo extends StatelessWidget {
-  const _Logo();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: 84,
-          height: 84,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: const Icon(Icons.task_alt, color: Colors.white, size: 44),
-        ),
-        const SizedBox(height: 16),
-        const Text('SprintTrack', style: AppText.display),
-        const SizedBox(height: 4),
         Text(
-          'Project & SLA Task Tracker',
-          style: AppText.bodyStrong.copyWith(color: AppColors.primary),
+          'New to the team?',
+          style: AppText.manrope(14, color: AppColors.iconMuted),
         ),
-        const SizedBox(height: 2),
-        const Text(
-          'Assign it. Track it. Deliver on time.',
-          style: AppText.bodyMuted,
+        TextButton(
+          onPressed: _submitting ? null : _openRegister,
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+          ),
+          child: Text(
+            'Create account',
+            style: AppText.manrope(
+              14,
+              weight: FontWeight.w800,
+            ).copyWith(decoration: TextDecoration.underline),
+          ),
         ),
       ],
     );

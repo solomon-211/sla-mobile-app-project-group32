@@ -8,10 +8,12 @@ import '../models/task.dart';
 import '../models/team_member.dart';
 import '../services/database_helper.dart';
 import '../services/session_service.dart';
+import '../theme/app_theme.dart';
 import '../utils/sla.dart';
 import '../utils/validators.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/dialogs.dart';
+import '../widgets/tempo_bottom_nav.dart';
 import 'dashboard_screen.dart';
 import 'task_list_screen.dart';
 import 'team_screen.dart';
@@ -31,6 +33,7 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   static const _dashboardTab = 0;
   static const _tasksTab = 1;
+  static const _teamTab = 2;
 
   /// Lets the tabs open this Scaffold's drawer from their own app bars.
   final _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -75,16 +78,17 @@ class _HomeShellState extends State<HomeShell> {
       final members = await db.getMembers();
       final tasks = await db.getTasks();
       final userId = await SessionService.currentUserId();
-      final projectName =
-          await SessionService.projectName(fallback: seedProjectName);
+      final projectName = await SessionService.projectName(
+        fallback: seedProjectName,
+      );
       if (!mounted) return;
 
       final user = members.where((m) => m.id == userId).firstOrNull;
       if (user == null) {
-        // Nobody is signed in (or the member was removed): back to sign in.
+        // Nobody is signed in (or the member was removed): back to Landing.
         Navigator.pushNamedAndRemoveUntil(
           context,
-          AppRoutes.signIn,
+          AppRoutes.landing,
           (route) => false,
         );
         return;
@@ -165,7 +169,8 @@ class _HomeShellState extends State<HomeShell> {
     );
     if (!confirmed) return;
     try {
-      // Clear the saved user, then remove every screen so Back cannot return.
+      // Clear the saved user, then return to Landing with every other screen
+      // removed so Back cannot return.
       await SessionService.signOut();
     } catch (error, stack) {
       logError('Could not sign out', error, stack);
@@ -175,7 +180,7 @@ class _HomeShellState extends State<HomeShell> {
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(
       context,
-      AppRoutes.signIn,
+      AppRoutes.landing,
       (route) => false,
     );
   }
@@ -201,26 +206,44 @@ class _HomeShellState extends State<HomeShell> {
                 onNewTask: () => _openRoute(AppRoutes.taskForm),
                 onSignOut: _signOut,
               ),
+        // The nav floats over the tabs, so each tab leaves room at the bottom.
+        extendBody: true,
+        backgroundColor: _tabIndex == _dashboardTab
+            ? AppColors.inkDeep
+            : AppColors.ground,
         body: _buildBody(),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _tabIndex,
-          onTap: _selectTab,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Home',
+        bottomNavigationBar: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: TempoBottomNav(
+              currentTab: _tabIndex,
+              onSelectTab: _selectTab,
+              dark: _tabIndex == _dashboardTab,
+              items: const [
+                TempoNavItem(
+                  icon: Icons.home_outlined,
+                  label: 'Home',
+                  tabIndex: _dashboardTab,
+                ),
+                TempoNavItem(
+                  icon: Icons.checklist_rounded,
+                  label: 'Tasks',
+                  tabIndex: _tasksTab,
+                ),
+                // Stats has no screen yet, so it is shown disabled.
+                TempoNavItem(
+                  icon: Icons.bar_chart_rounded,
+                  label: 'Stats',
+                  tabIndex: null,
+                ),
+                TempoNavItem(
+                  icon: Icons.group_outlined,
+                  label: 'Team',
+                  tabIndex: _teamTab,
+                ),
+              ],
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.checklist_outlined),
-              label: 'Tasks',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.group_outlined),
-              activeIcon: Icon(Icons.group),
-              label: 'Team',
-            ),
-          ],
+          ),
         ),
       ),
     );
